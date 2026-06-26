@@ -1,0 +1,38 @@
+{
+  "expo": {
+    "name": "ตลาดชุมชน",
+    "slug": "community-marketplace",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#16a34a"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "co.relearnsolution.communitymarketplace"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#16a34a"
+      },
+      "package": "co.relearnsolution.communitymarketplace",
+      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE"]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-notifications",
+      ["expo-camera", { "cameraPermission": "ต้องการกล้องเพื่อสแกน QR Code" }],
+      ["expo-image-picker", { "photosPermission": "ต้องการเข้าถึงรูปภาพเพื่อโพสต์สินค้า" }]
+    ],
+    "scheme": "communitymarketplace",
+    "extra": {
+      "router": { "origin": false },
+      "eas": { "projectId": "YOUR_EAS_PROJECT_ID" }
+    }
+  }
+}
