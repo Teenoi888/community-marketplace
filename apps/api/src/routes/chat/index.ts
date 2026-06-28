@@ -16,7 +16,7 @@ export async function chatRoutes(app: FastifyInstance) {
     connectedClients.set(userId, socket)
     app.log.info(`Chat: user ${userId} connected (${connectedClients.size} online)`)
 
-    socket.on("message", async (raw) => {
+    socket.on("message", async (raw: any) => {
       try {
         const msg = JSON.parse(raw.toString())
 
