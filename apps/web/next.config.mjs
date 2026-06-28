@@ -8,6 +8,7 @@ const nextConfig = {
     ],
   },
   transpilePackages: ["@cm/types"],
+  // force rebuild
 }
 
 export default nextConfig
