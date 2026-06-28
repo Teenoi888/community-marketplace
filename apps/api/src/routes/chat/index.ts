@@ -10,7 +10,7 @@ const connectedClients = new Map<string, any>()
 export async function chatRoutes(app: FastifyInstance) {
 
   // WebSocket endpoint — ws://localhost:3001/api/chat/ws
-  app.get("/ws", { websocket: true, preHandler: [requireAuth] }, (socket, request) => {
+  app.get("/ws", { websocket: true, preHandler: [requireAuth] }, (socket: any, request) => {
     const { userId } = (request as any).user as { userId: string }
 
     connectedClients.set(userId, socket)
