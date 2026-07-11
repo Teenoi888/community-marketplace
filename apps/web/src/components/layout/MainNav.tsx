@@ -13,9 +13,11 @@ export function MainNav() {
   const menuRef = useRef<HTMLDivElement>(null)
   const { user, setUser, logout } = useAuthStore()
   const cartCount = useCartStore((s) => s.itemCount())
+  const [mounted, setMounted] = useState(false)
 
   // Restore session from localStorage token on mount
   useEffect(() => {
+    setMounted(true)
     const token = localStorage.getItem("access_token")
     if (token && !user) {
       api.get("/auth/me").then(res => {
@@ -78,7 +80,7 @@ export function MainNav() {
           <div className="flex items-center gap-3">
             <Link href="/cart" className="relative p-2 text-gray-600 hover:text-gray-900">
               <ShoppingCart className="w-5 h-5" />
-              {cartCount > 0 && (
+              {mounted && cartCount > 0 && (
                 <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">{cartCount > 99 ? "99+" : cartCount}</span>
               )}
             </Link>
