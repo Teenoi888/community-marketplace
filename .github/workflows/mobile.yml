@@ -1,0 +1,29 @@
+name: Mobile Build (EAS)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/mobile/**"
+
+jobs:
+  build:
+    name: Expo EAS Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v3
+        with: { version: 9 }
+      - uses: actions/setup-node@v4
+        with: { node-version: "20", cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Build Android + iOS
+        working-directory: apps/mobile
+        run: |
+          eas build --platform all --non-interactive --auto-submit
+        env:
+          EXPO_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}

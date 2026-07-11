@@ -1,0 +1,130 @@
+import type { FastifyInstance } from "fastify"
+import { z } from "zod"
+import { db } from "../../db/index.js"
+import { communities, communityMembers, shops, products, users } from "../../db/schema.js"
+import { eq, ilike, and, sql } from "drizzle-orm"
+import { requireAuth } from "../../middleware/auth.js"
+
+const createCommunitySchema = z.object({
+  name: z.string().min(3),
+  province: z.string(),
+  district: z.string(),
+  subdistrict: z.string(),
+  description: z.string().optional(),
+  logoUrl: z.string().url().optional(),
+  bannerUrl: z.string().url().optional(),
+})
+
+export async function communityRoutes(app: FastifyInstance) {
+
+  // List communities
+  app.get("/", async (request) => {
+    const { province, search, featured, limit = "20", page = "1" } = request.query as Record<string, string>
+    const limitN = Math.min(Number(limit), 50)
+    const offset = (Number(page) - 1) * limitN
+
+    const conditions = []
+    if (province) conditions.push(eq(communities.province, province))
+    if (search) conditions.push(ilike(communities.name, `%${search}%`))
+
+    const rows = await db.query.communities.findMany({
+      where: conditions.length ? and(...conditions) : undefined,
+      limit: limitN,
+      offset,
+      orderBy: featured ? [communities.memberCount] : [communities.createdAt],
+    })
+
+    // Attach product counts
+    const withStats = await Promise.all(rows.map(async (c) => {
+      const [{ count }] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(products)
+        .innerJoin(shops, eq(shops.id, products.shopId))
+        .where(eq(shops.communityId, c.id))
+      return { ...c, productCount: Number(count) }
+    }))
+
+    return { success: true, data: withStats }
+  })
+
+  // Get community by slug
+  app.get("/:slug", async (request, reply) => {
+    const { slug } = request.params as { slug: string }
+    const community = await db.query.communities.findFirst({ where: eq(communities.slug, slug) })
+    if (!community) return reply.code(404).send({ success: false, error: "ไม่พบชุมชน" })
+
+    const communityShops = await db.query.shops.findMany({ where: eq(shops.communityId, community.id) })
+    const shopIds = communityShops.map((s) => s.id)
+    const productList = shopIds.length
+      ? await db.query.products.findMany({
+          where: eq(products.shopId, shopIds[0]),
+          with: { shop: { with: { community: true } } },
+        })
+      : []
+
+    return { success: true, data: { community, products: productList } }
+  })
+
+  // Get MY community (the one I'm admin of)
+  app.get("/my", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { userId } = request.user as { userId: string }
+    const membership = await db.query.communityMembers.findFirst({
+      where: and(eq(communityMembers.userId, userId), eq(communityMembers.role, "admin")),
+      with: { community: true },
+    })
+    if (!membership) return reply.code(404).send({ success: false, error: "ยังไม่มีชุมชน" })
+    return { success: true, data: membership.community }
+  })
+
+  // Update community
+  app.patch("/:id", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { userId } = request.user as { userId: string }
+    const { id } = request.params as { id: string }
+
+    // ตรวจสอบว่าเป็น admin ของชุมชนนี้
+    const membership = await db.query.communityMembers.findFirst({
+      where: and(eq(communityMembers.communityId, id), eq(communityMembers.userId, userId), eq(communityMembers.role, "admin")),
+    })
+    if (!membership) return reply.code(403).send({ success: false, error: "ไม่มีสิทธิ์แก้ไข" })
+
+    const updateSchema = z.object({
+      name: z.string().min(3).optional(),
+      description: z.string().optional(),
+      province: z.string().optional(),
+      district: z.string().optional(),
+      subdistrict: z.string().optional(),
+      logoUrl: z.string().url().optional().nullable(),
+      bannerUrl: z.string().url().optional().nullable(),
+    })
+    const body = updateSchema.parse(request.body)
+    const [updated] = await db.update(communities).set(body).where(eq(communities.id, id)).returning()
+    return { success: true, data: updated }
+  })
+
+  // Create community (requires auth)
+  app.post("/", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { userId } = request.user as { userId: string }
+
+    // จำกัด 1 ชุมชนต่อ user
+    const existing = await db.query.communityMembers.findFirst({
+      where: and(eq(communityMembers.userId, userId), eq(communityMembers.role, "admin")),
+    })
+    if (existing) {
+      return reply.code(400).send({ success: false, error: "คุณมีชุมชนแล้ว 1 ชุมชน — ไม่สามารถสร้างเพิ่มได้" })
+    }
+
+    const body = createCommunitySchema.parse(request.body)
+    const slug = body.name
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/g, "")
+      + "-" + Date.now().toString(36)
+
+    const [community] = await db.insert(communities).values({ ...body, slug }).returning()
+    await db.insert(communityMembers).values({ communityId: community.id, userId, role: "admin" })
+    // Auto-create a shop for this community admin
+    await db.insert(shops).values({ communityId: community.id, ownerId: userId, name: body.name, description: body.description })
+
+    return reply.code(201).send({ success: true, data: community })
+  })
+}

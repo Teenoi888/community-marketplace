@@ -1,0 +1,11 @@
+node_modules/
+.turbo/
+.next/
+dist/
+*.local
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+apps/web/next.config.ts
