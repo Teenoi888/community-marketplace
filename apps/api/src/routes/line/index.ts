@@ -17,7 +17,7 @@ export async function lineRoutes(app: FastifyInstance) {
     const params = new URLSearchParams({
       response_type: "code",
       client_id: process.env.LINE_CHANNEL_ID!,
-      redirect_uri: `${process.env.NEXT_PUBLIC_API_URL}/api/line/callback`,
+      redirect_uri: `${process.env.NEXT_PUBLIC_API_URL}/line/callback`,
       state: "random_state_" + Date.now(),
       scope: "profile openid email",
     })
@@ -33,7 +33,7 @@ export async function lineRoutes(app: FastifyInstance) {
       new URLSearchParams({
         grant_type: "authorization_code",
         code,
-        redirect_uri: `${process.env.NEXT_PUBLIC_API_URL}/api/line/callback`,
+        redirect_uri: `${process.env.NEXT_PUBLIC_API_URL}/line/callback`,
         client_id: process.env.LINE_CHANNEL_ID!,
         client_secret: process.env.LINE_CHANNEL_SECRET!,
       }),

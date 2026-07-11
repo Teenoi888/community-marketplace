@@ -49,7 +49,7 @@ export default function LoginPage() {
 
         {/* Line Login */}
         <a
-          href={`${process.env.NEXT_PUBLIC_API_URL}/auth/line`}
+          href={`${process.env.NEXT_PUBLIC_API_URL}/line/auth`}
           className="flex items-center justify-center gap-3 w-full py-3 px-4 bg-[#06C755] hover:bg-[#05a847] text-white font-semibold rounded-xl transition-colors mb-4"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
