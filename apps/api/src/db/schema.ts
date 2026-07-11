@@ -20,7 +20,19 @@ export const users = pgTable("users", {
   email: text("email").unique(),
   passwordHash: text("password_hash"),
   lineUid: text("line_uid").unique(),
+  googleId: text("google_id").unique(),
+  facebookId: text("facebook_id").unique(),
   avatarUrl: text("avatar_url"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+})
+
+export const otpCodes = pgTable("otp_codes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").notNull(),
+  code: text("code").notNull(),
+  purpose: text("purpose").notNull().default("login"),
+  expiresAt: timestamp("expires_at").notNull(),
+  consumedAt: timestamp("consumed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 })
 

@@ -67,7 +67,7 @@ export async function lineRoutes(app: FastifyInstance) {
 
     // Redirect back to frontend with token
     return reply.redirect(
-      `${process.env.NEXT_PUBLIC_APP_URL}/auth/line-callback?token=${accessToken}`
+      `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?token=${accessToken}`
     )
   })
 
