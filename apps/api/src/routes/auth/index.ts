@@ -1,19 +1,33 @@
 import type { FastifyInstance } from "fastify"
 import bcrypt from "bcryptjs"
 import { z } from "zod"
+import { Resend } from "resend"
 import { db } from "../../db/index.js"
-import { users, shops } from "../../db/schema.js"
-import { eq } from "drizzle-orm"
+import { users, shops, otpCodes } from "../../db/schema.js"
+import { eq, and, isNull, desc } from "drizzle-orm"
+
+const resend = new Resend(process.env.RESEND_API_KEY || "re_placeholder")
 
 const registerSchema = z.object({
   name: z.string().min(2),
   phone: z.string().min(9).max(10),
+  email: z.string().email("อีเมลไม่ถูกต้อง").optional().or(z.literal("")),
   password: z.string().min(6),
 })
 
 const loginSchema = z.object({
   phone: z.string(),
   password: z.string(),
+})
+
+const otpRequestSchema = z.object({ email: z.string().email() })
+const otpVerifySchema = z.object({ email: z.string().email(), code: z.string().length(6) })
+
+const forgotPasswordSchema = z.object({ email: z.string().email() })
+const resetPasswordSchema = z.object({
+  email: z.string().email(),
+  code: z.string().length(6),
+  newPassword: z.string().min(6, "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร"),
 })
 
 function createTokens(app: FastifyInstance, userId: string) {
@@ -30,10 +44,16 @@ export async function authRoutes(app: FastifyInstance) {
     const existing = await db.query.users.findFirst({ where: eq(users.phone, body.phone) })
     if (existing) return reply.code(409).send({ success: false, error: "เบอร์โทรนี้มีในระบบแล้ว" })
 
+    if (body.email) {
+      const existingEmail = await db.query.users.findFirst({ where: eq(users.email, body.email) })
+      if (existingEmail) return reply.code(409).send({ success: false, error: "อีเมลนี้มีในระบบแล้ว" })
+    }
+
     const passwordHash = await bcrypt.hash(body.password, 12)
     const [user] = await db.insert(users).values({
       name: body.name,
       phone: body.phone,
+      email: body.email || null,
       passwordHash,
     }).returning()
 
@@ -71,10 +91,99 @@ export async function authRoutes(app: FastifyInstance) {
     }
   })
 
-  // Line OAuth callback
-  app.get("/line/callback", async (request, reply) => {
-    // TODO: Exchange code for Line user profile, upsert user, return tokens
-    return reply.redirect(`${process.env.NEXT_PUBLIC_APP_URL}?auth=line`)
+  // Request email OTP
+  app.post("/otp/request", async (request, reply) => {
+    const { email } = otpRequestSchema.parse(request.body)
+    const code = Math.floor(100000 + Math.random() * 900000).toString()
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000)
+    await db.insert(otpCodes).values({ email, code, expiresAt, purpose: "login" })
+
+    try {
+      const { error } = await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL!,
+        to: email,
+        subject: "รหัสยืนยันตัวตน - ตลาดชุมชน",
+        html: `<p>รหัส OTP ของคุณคือ <strong>${code}</strong><br/>หมดอายุใน 5 นาที</p>`,
+      })
+      if (error) throw error
+    } catch (err) {
+      app.log.error(err, "Failed to send OTP email")
+      return reply.code(502).send({ success: false, error: "ส่งอีเมลไม่สำเร็จ กรุณาลองใหม่" })
+    }
+
+    return { success: true }
+  })
+
+  // Verify email OTP
+  app.post("/otp/verify", async (request, reply) => {
+    const { email, code } = otpVerifySchema.parse(request.body)
+    const otp = await db.query.otpCodes.findFirst({
+      where: and(eq(otpCodes.email, email), eq(otpCodes.code, code), eq(otpCodes.purpose, "login"), isNull(otpCodes.consumedAt)),
+      orderBy: [desc(otpCodes.createdAt)],
+    })
+    if (!otp || otp.expiresAt < new Date()) {
+      return reply.code(401).send({ success: false, error: "รหัส OTP ไม่ถูกต้องหรือหมดอายุ" })
+    }
+    await db.update(otpCodes).set({ consumedAt: new Date() }).where(eq(otpCodes.id, otp.id))
+
+    let user = await db.query.users.findFirst({ where: eq(users.email, email) })
+    if (!user) {
+      const [created] = await db.insert(users).values({ name: email.split("@")[0], email }).returning()
+      user = created
+    }
+
+    const { accessToken, refreshToken } = createTokens(app, user.id)
+    reply.setCookie("refreshToken", refreshToken, { httpOnly: true, sameSite: "lax", path: "/" })
+    return { success: true, accessToken, user: { id: user.id, name: user.name, email: user.email, avatarUrl: user.avatarUrl } }
+  })
+
+  // Request password reset OTP
+  app.post("/password/forgot", async (request, reply) => {
+    const { email } = forgotPasswordSchema.parse(request.body)
+    const user = await db.query.users.findFirst({ where: eq(users.email, email) })
+
+    // Always respond success to avoid leaking whether an email is registered
+    if (!user) return { success: true }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString()
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000)
+    await db.insert(otpCodes).values({ email, code, expiresAt, purpose: "reset_password" })
+
+    try {
+      const { error } = await resend.emails.send({
+        from: process.env.RESEND_FROM_EMAIL!,
+        to: email,
+        subject: "รีเซ็ตรหัสผ่าน - ตลาดชุมชน",
+        html: `<p>รหัสสำหรับตั้งรหัสผ่านใหม่คือ <strong>${code}</strong><br/>หมดอายุใน 5 นาที</p>`,
+      })
+      if (error) throw error
+    } catch (err) {
+      app.log.error(err, "Failed to send password reset email")
+      return reply.code(502).send({ success: false, error: "ส่งอีเมลไม่สำเร็จ กรุณาลองใหม่" })
+    }
+
+    return { success: true }
+  })
+
+  // Reset password with OTP
+  app.post("/password/reset", async (request, reply) => {
+    const { email, code, newPassword } = resetPasswordSchema.parse(request.body)
+    const otp = await db.query.otpCodes.findFirst({
+      where: and(eq(otpCodes.email, email), eq(otpCodes.code, code), eq(otpCodes.purpose, "reset_password"), isNull(otpCodes.consumedAt)),
+      orderBy: [desc(otpCodes.createdAt)],
+    })
+    if (!otp || otp.expiresAt < new Date()) {
+      return reply.code(401).send({ success: false, error: "รหัส OTP ไม่ถูกต้องหรือหมดอายุ" })
+    }
+
+    const user = await db.query.users.findFirst({ where: eq(users.email, email) })
+    if (!user) return reply.code(404).send({ success: false, error: "ไม่พบบัญชีผู้ใช้" })
+
+    await db.update(otpCodes).set({ consumedAt: new Date() }).where(eq(otpCodes.id, otp.id))
+    const passwordHash = await bcrypt.hash(newPassword, 12)
+    await db.update(users).set({ passwordHash }).where(eq(users.id, user.id))
+
+    return { success: true }
   })
 
   // Logout

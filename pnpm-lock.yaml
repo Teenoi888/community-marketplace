@@ -68,6 +68,9 @@ importers:
       postgres:
         specifier: ^3.4.4
         version: 3.4.9
+      resend:
+        specifier: ^6.17.2
+        version: 6.17.2
       ws:
         specifier: ^8.17.1
         version: 8.21.0
@@ -122,7 +125,7 @@ importers:
         version: 0.28.19(expo@51.0.39(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0))
       expo-router:
         specifier: ~3.5.0
-        version: 3.5.24(ecq4nyx26o7rp7g4vzr4lpprse)
+        version: 3.5.24(smdquy3b3j5yam2tsdxjumi7xu)
       expo-secure-store:
         specifier: ~13.0.2
         version: 13.0.2(expo@51.0.39(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0))
@@ -205,6 +208,9 @@ importers:
       react-hook-form:
         specifier: ^7.52.0
         version: 7.81.0(react@18.3.1)
+      react-icons:
+        specifier: ^5.7.0
+        version: 5.7.0(react@18.3.1)
       sonner:
         specifier: ^1.5.0
         version: 1.7.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -2134,6 +2140,9 @@ packages:
     resolution: {integrity: sha512-0JFs3V2y2M9tKW5na/qxe69Zv+uxLMO7QBbhxF/FHu/Gp2NFZAAL9tWl9PU02xxo07pb3G9FTyjNc6D5uZrJIg==}
     engines: {node: '>=18.0.0'}
 
+  '@stablelib/base64@1.0.1':
+    resolution: {integrity: sha512-1bnPQqSxSuc3Ii6MhBysoWCg58j97aUjuCSZrGSmDxNqtytIi0k8utUenAwTZN4V5mXXYGsVUI9zeBqy+jBOSQ==}
+
   '@swc/counter@0.1.3':
     resolution: {integrity: sha512-e2BR4lsJkkRlKZ/qCHPw9ZaSxc0MVUd7gtbtaB7aMvHeJVYe8sOB8DBZkP2DtISHGSku9sCK6T6cnY0CtXrOCQ==}
 
@@ -3658,6 +3667,9 @@ packages:
 
   fast-querystring@1.1.2:
     resolution: {integrity: sha512-g6KuKWmFXc0fID8WWH0jit4g0AGBoJhCkJMb1RmbsSEUNvQ+ZC8D6CUZ+GtF8nMzSPXnhiePyyqqipzNNEnHjg==}
+
+  fast-sha256@1.3.0:
+    resolution: {integrity: sha512-n11RGP/lrWEFI/bWdygLxhI+pVeo1ZYIVwvvPkW7azl/rOy+F3HYRZ2K5zeE9mmkhQppyv9sQFx0JM9UabnpPQ==}
 
   fast-uri@2.4.0:
     resolution: {integrity: sha512-ypuAmmMKInk5q7XcepxlnUWDLWv4GFtaJqAzWKqn62IpQ3pejtr5dTVbt3vwqVaMKmkNR55sTT+CqUKIaT21BA==}
@@ -5326,6 +5338,9 @@ packages:
     resolution: {integrity: sha512-/+5VFTchJDoVj3bhoqi6UeymcD00DAwb1nJwamzPvHEszJ4FpF6SNNbUbOS8yI56qHzdV8eK0qEfOSiodkTdxg==}
     engines: {node: '>= 0.4'}
 
+  postal-mime@2.7.4:
+    resolution: {integrity: sha512-0WdnFQYUrPGGTFu1uOqD2s7omwua8xaeYGdO6rb88oD5yJ/4pPHDA4sdWqfD8wQVfCny563n/HQS7zTFft+f/g==}
+
   postcss-import@15.1.0:
     resolution: {integrity: sha512-hpr+J05B2FVYUAXHeK1YyI267J/dDDhMU6B6civm8hSY1jYJnBXxzKDKDswzJmtLHryrjhnDjqqp/49t8FALew==}
     engines: {node: '>=14.0.0'}
@@ -5519,6 +5534,11 @@ packages:
     peerDependencies:
       react: ^16.8.0 || ^17 || ^18 || ^19
 
+  react-icons@5.7.0:
+    resolution: {integrity: sha512-LBLy340Rzqy6+/yVhZKT3B/QpP1BZaesGqasf09HPOBzRarcDIFH0WwXlXQfE7q7ipxK4MSiC5DIBWURCny6fw==}
+    peerDependencies:
+      react: '*'
+
   react-is@16.13.1:
     resolution: {integrity: sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==}
 
@@ -5689,6 +5709,15 @@ packages:
   requireg@0.2.2:
     resolution: {integrity: sha512-nYzyjnFcPNGR3lx9lwPPPnuQxv6JWEZd2Ci0u9opN7N5zUEPIhY/GbL3vMGOr2UXwEg9WwSyV9X9Y/kLFgPsOg==}
     engines: {node: '>= 4.0.0'}
+
+  resend@6.17.2:
+    resolution: {integrity: sha512-hbaXEORFIFfT2Bh03NsA/akTTTKkD1hiuJ88ke64c5dWVV6DyoLxzFve3OiZqVOQ+JKLJ5uVkPR6hlUslpJFoA==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@react-email/render': '*'
+    peerDependenciesMeta:
+      '@react-email/render':
+        optional: true
 
   resolve-from@3.0.0:
     resolution: {integrity: sha512-GnlH6vxLymXJNMBo7XP1fJIzBFbdYt49CuTwmB/6N53t+kMPRMFKz783LlQ4tv28XoQfMWinAJX6WCGf2IlaIw==}
@@ -5989,6 +6018,9 @@ packages:
 
   standard-as-callback@2.1.0:
     resolution: {integrity: sha512-qoRRSyROncaz1z0mvYqIE4lCd9p2R90i6GxW3uZv5ucSu8tU7B5HXUP1gG8pVZsYNVaXjk8ClXHPttLyxAL48A==}
+
+  standardwebhooks@1.0.0:
+    resolution: {integrity: sha512-BbHGOQK9olHPMvQNHWul6MYlrRTAOKn03rOe4A8O3CLWhNf4YHBqq2HJKKC+sfqpxiBY52pNeesD6jIiLDz8jg==}
 
   statuses@1.5.0:
     resolution: {integrity: sha512-OpZ3zP+jT1PI7I8nemJX4AKmAX070ZkYPVWV/AaKTJl+tXCTGyVdC1a4SL8RUQYEwk/f34ZX8UTykN68FwrqAA==}
@@ -9144,6 +9176,8 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
+  '@stablelib/base64@1.0.1': {}
+
   '@swc/counter@0.1.3': {}
 
   '@swc/helpers@0.5.5':
@@ -10767,7 +10801,7 @@ snapshots:
       - encoding
       - supports-color
 
-  expo-router@3.5.24(ecq4nyx26o7rp7g4vzr4lpprse):
+  expo-router@3.5.24(smdquy3b3j5yam2tsdxjumi7xu):
     dependencies:
       '@expo/metro-runtime': 3.2.3(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))
       '@expo/server': 0.4.4(typescript@5.9.3)
@@ -10776,7 +10810,7 @@ snapshots:
       '@react-navigation/native': 6.1.18(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0)
       '@react-navigation/native-stack': 6.9.26(@react-navigation/native@6.1.18(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0))(react-native-safe-area-context@4.10.5(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0))(react-native-screens@3.31.1(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0))(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0)
       expo: 51.0.39(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0)
-      expo-constants: 16.0.2(expo@51.0.39(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0))
+      expo-constants: 57.0.3(expo@51.0.39(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0))(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))
       expo-linking: 57.0.2(expo@51.0.39(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0))(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0)
       expo-splash-screen: 0.27.7(expo-modules-autolinking@1.11.3)(expo@51.0.39(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.2.79)(react@18.2.0))(react@18.2.0))
       expo-status-bar: 1.12.1
@@ -10876,6 +10910,8 @@ snapshots:
   fast-querystring@1.1.2:
     dependencies:
       fast-decode-uri-component: 1.0.1
+
+  fast-sha256@1.3.0: {}
 
   fast-uri@2.4.0: {}
 
@@ -12807,6 +12843,8 @@ snapshots:
 
   possible-typed-array-names@1.1.0: {}
 
+  postal-mime@2.7.4: {}
+
   postcss-import@15.1.0(postcss@8.5.16):
     dependencies:
       postcss: 8.5.16
@@ -12991,6 +13029,10 @@ snapshots:
       react: 18.2.0
 
   react-hook-form@7.81.0(react@18.3.1):
+    dependencies:
+      react: 18.3.1
+
+  react-icons@5.7.0(react@18.3.1):
     dependencies:
       react: 18.3.1
 
@@ -13233,6 +13275,11 @@ snapshots:
       nested-error-stacks: 2.0.1
       rc: 1.2.8
       resolve: 1.7.1
+
+  resend@6.17.2:
+    dependencies:
+      postal-mime: 2.7.4
+      standardwebhooks: 1.0.0
 
   resolve-from@3.0.0: {}
 
@@ -13551,6 +13598,11 @@ snapshots:
       type-fest: 0.7.1
 
   standard-as-callback@2.1.0: {}
+
+  standardwebhooks@1.0.0:
+    dependencies:
+      '@stablelib/base64': 1.0.1
+      fast-sha256: 1.3.0
 
   statuses@1.5.0: {}
 
