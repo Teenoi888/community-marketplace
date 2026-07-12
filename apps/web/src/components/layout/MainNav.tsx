@@ -105,6 +105,11 @@ export function MainNav() {
                   <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">{cartCount > 99 ? "99+" : cartCount}</span>
                 )}
               </Link>
+              {user && (
+                <Link href="/chat" className="relative p-2 text-gray-600 hover:text-gray-900">
+                  <MessageSquare className="w-5 h-5" />
+                </Link>
+              )}
               <Link href="/notifications" className="relative p-2 text-gray-600 hover:text-gray-900">
                 <Bell className="w-5 h-5" />
                 {mounted && unreadCount > 0 && (
