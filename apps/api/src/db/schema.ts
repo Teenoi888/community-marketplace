@@ -136,10 +136,29 @@ export const messages = pgTable("messages", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 })
 
+export const userAddresses = pgTable("user_addresses", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  label: text("label").default("บ้าน").notNull(),
+  name: text("name").notNull(),
+  phone: text("phone").notNull(),
+  address: text("address").notNull(),
+  province: text("province").notNull(),
+  district: text("district").notNull(),
+  zipCode: text("zip_code").notNull(),
+  isDefault: boolean("is_default").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+})
+
 // Relations (required for db.query...findMany({ with: {...} }))
 export const usersRelations = relations(users, ({ many }) => ({
   shops: many(shops),
   communityMemberships: many(communityMembers),
+  addresses: many(userAddresses),
+}))
+
+export const userAddressesRelations = relations(userAddresses, ({ one }) => ({
+  user: one(users, { fields: [userAddresses.userId], references: [users.id] }),
 }))
 
 export const communitiesRelations = relations(communities, ({ many }) => ({
