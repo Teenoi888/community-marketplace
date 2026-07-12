@@ -49,6 +49,8 @@ await app.register(cors, {
   origin: [
     process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
     "https://liff.line.me",
+    "https://chumchon.market",
+    "https://www.chumchon.market",
   ],
   credentials: true,
 })
