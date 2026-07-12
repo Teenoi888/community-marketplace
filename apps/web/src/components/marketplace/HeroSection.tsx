@@ -1,6 +1,6 @@
 "use client"
 import Link from "next/link"
-import { ArrowRight, Shield, Zap, Users, ShoppingBag } from "lucide-react"
+import { ArrowRight, Shield, Zap, Users, ShoppingBag, MapPin, Leaf } from "lucide-react"
 import { useAuthStore } from "@/lib/store/auth"
 
 export function HeroSection() {
@@ -10,17 +10,12 @@ export function HeroSection() {
     <div className="bg-gradient-to-br from-primary-600 via-primary-700 to-primary-800 text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
         <div className="max-w-2xl">
-          <div className="inline-flex items-center gap-2 bg-white/20 rounded-full px-3 py-1 text-sm font-medium mb-4">
-            <Zap className="w-3.5 h-3.5" />
-            GP เพียง 0–2% เท่านั้น
-          </div>
           <h1 className="text-3xl md:text-4xl font-extrabold leading-tight mb-4">
             ตลาดออนไลน์<br />
             <span className="text-primary-200">สำหรับชุมชนไทย</span>
           </h1>
           <p className="text-primary-100 text-lg mb-8 leading-relaxed">
-            ขายสินค้าชุมชนได้โดยตรง ไม่ผ่านตัวกลาง ไม่โดนหัก GP สูง
-            รองรับ PromptPay • แจ้งเตือนผ่าน Line • iOS & Android
+            ตลาดออนไลน์ที่สร้างโดยชุมชน เพื่อชุมชน เชื่อมสินค้าท้องถิ่นไทยกับผู้ซื้อทั่วประเทศ
           </p>
           <div className="flex flex-wrap gap-3">
             {user ? (
@@ -55,9 +50,9 @@ export function HeroSection() {
         {/* Stats */}
         <div className="flex flex-wrap gap-6 mt-10 pt-8 border-t border-primary-500/50">
           {[
-            { icon: Shield, label: "GP เพียง 0–2%", sub: "vs Shopee 3–15%" },
-            { icon: Users, label: "ชุมชนทั่วไทย", sub: "77 จังหวัด" },
-            { icon: Zap, label: "รับเงินทันที", sub: "PromptPay / QR" },
+            { icon: Leaf, label: "สินค้าชุมชนแท้", sub: "OTOP · Handmade · เกษตรกร" },
+            { icon: MapPin, label: "77 จังหวัดทั่วไทย", sub: "ครอบคลุมทุกชุมชน" },
+            { icon: Shield, label: "รายได้คืนสู่ท้องถิ่น", sub: "GP ต่ำ เงินถึงมือชาวบ้านโดยตรง" },
           ].map(({ icon: Icon, label, sub }) => (
             <div key={label} className="flex items-center gap-3">
               <div className="w-9 h-9 bg-white/20 rounded-lg flex items-center justify-center flex-shrink-0">

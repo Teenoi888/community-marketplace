@@ -28,6 +28,14 @@ export const users = pgTable("users", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 })
 
+export const passwordResets = pgTable("password_resets", {
+  id:        uuid("id").primaryKey().defaultRandom(),
+  phone:     text("phone").notNull(),
+  otp:       text("otp").notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+})
+
 export const categories = pgTable("categories", {
   id: uuid("id").primaryKey().defaultRandom(),
   slug: text("slug").unique().notNull(),

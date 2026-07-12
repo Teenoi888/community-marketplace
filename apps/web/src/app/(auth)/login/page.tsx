@@ -192,7 +192,7 @@ export default function LoginPage() {
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="block text-sm font-medium text-gray-700">รหัสผ่าน</label>
-                <Link href="/forgot-password" className="text-xs text-primary-600 hover:underline">ลืมรหัสผ่าน?</Link>
+                <Link href="/forgot-password-phone" className="text-xs text-primary-600 hover:underline">ลืมรหัสผ่าน?</Link>
               </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />

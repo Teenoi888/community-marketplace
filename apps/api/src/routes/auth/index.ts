@@ -3,8 +3,8 @@ import bcrypt from "bcryptjs"
 import { z } from "zod"
 import { Resend } from "resend"
 import { db } from "../../db/index.js"
-import { users, shops, otpCodes } from "../../db/schema.js"
-import { eq, and, isNull, desc } from "drizzle-orm"
+import { users, shops, otpCodes, passwordResets } from "../../db/schema.js"
+import { eq, and, isNull, desc, gt } from "drizzle-orm"
 
 const resend = new Resend(process.env.RESEND_API_KEY || "re_placeholder")
 
@@ -184,6 +184,75 @@ export async function authRoutes(app: FastifyInstance) {
     await db.update(users).set({ passwordHash }).where(eq(users.id, user.id))
 
     return { success: true }
+  })
+
+  // Request phone-based password reset OTP
+  app.post("/forgot-password", async (request, reply) => {
+    const { phone } = request.body as { phone: string }
+    if (!phone || phone.length < 9) {
+      return reply.code(400).send({ success: false, error: "กรุณากรอกเบอร์โทรที่ถูกต้อง" })
+    }
+
+    const user = await db.query.users.findFirst({ where: eq(users.phone, phone) })
+
+    // ถ้าไม่พบเบอร์ → ตอบ success เหมือนกัน (ป้องกัน user enumeration)
+    if (!user) {
+      return { success: true, message: "หากมีบัญชีด้วยเบอร์นี้ จะได้รับ OTP" }
+    }
+
+    // ลบ OTP เก่าของเบอร์นี้ก่อน
+    await db.delete(passwordResets).where(eq(passwordResets.phone, phone))
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString()
+    const expiresAt = new Date(Date.now() + 15 * 60 * 1000) // 15 นาที
+
+    await db.insert(passwordResets).values({ phone, otp, expiresAt })
+
+    // TODO: ส่ง OTP ผ่าน SMS (Twilio/DTAC/AIS) หรือ LINE Message API
+    // ตอนนี้ส่ง OTP กลับ (dev/test mode เท่านั้น — ใน production ให้ลบ otpPreview ออก)
+    const isProduction = process.env.NODE_ENV === "production"
+    return {
+      success: true,
+      message: "ส่ง OTP แล้ว (ตอนนี้แสดงบนหน้าจอ — จะเปลี่ยนเป็น SMS ในอนาคต)",
+      otpPreview: isProduction ? undefined : otp,  // แสดงเฉพาะ dev mode
+    }
+  })
+
+  // Reset password (phone) — verify OTP + set new password
+  app.post("/reset-password", async (request, reply) => {
+    const { phone, otp, newPassword } = request.body as {
+      phone: string
+      otp: string
+      newPassword: string
+    }
+
+    if (!phone || !otp || !newPassword || newPassword.length < 6) {
+      return reply.code(400).send({ success: false, error: "ข้อมูลไม่ครบถ้วน" })
+    }
+
+    const now = new Date()
+    const record = await db.query.passwordResets.findFirst({
+      where: and(
+        eq(passwordResets.phone, phone),
+        eq(passwordResets.otp, otp),
+        gt(passwordResets.expiresAt, now),
+      ),
+    })
+
+    if (!record) {
+      return reply.code(400).send({ success: false, error: "OTP ไม่ถูกต้องหรือหมดอายุแล้ว" })
+    }
+
+    const user = await db.query.users.findFirst({ where: eq(users.phone, phone) })
+    if (!user) return reply.code(404).send({ success: false, error: "ไม่พบบัญชีนี้" })
+
+    const passwordHash = await bcrypt.hash(newPassword, 12)
+    await db.update(users).set({ passwordHash }).where(eq(users.id, user.id))
+
+    // ลบ OTP ที่ใช้แล้ว
+    await db.delete(passwordResets).where(eq(passwordResets.phone, phone))
+
+    return { success: true, message: "เปลี่ยนรหัสผ่านสำเร็จ" }
   })
 
   // Logout

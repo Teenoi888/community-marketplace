@@ -43,6 +43,13 @@
       "when": 1783851027724,
       "tag": "0005_admin_categories",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783870618164,
+      "tag": "0006_password_resets",
+      "breakpoints": true
     }
   ]
 }
