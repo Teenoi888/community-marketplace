@@ -111,7 +111,7 @@ export async function chatRoutes(app: FastifyInstance) {
       })
       const otherId = c.buyerId === userId ? c.sellerId : c.buyerId
       const other = await db.query.users.findFirst({ where: eq(users.id, otherId) })
-      return { ...c, lastMessage: lastMsg, otherUser: other }
+      return { ...c, lastMessage: lastMsg, otherUser: other ? { ...other, passwordHash: undefined } : other }
     }))
 
     return { success: true, data: withLastMsg }
