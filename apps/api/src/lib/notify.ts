@@ -13,6 +13,30 @@ interface NotifyOrderStatusInput {
   body: string
 }
 
+function renderEmailHtml({ title, body, orderId }: { title: string; body: string; orderId: string }) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.chumchon.market"
+  const orderUrl = `${appUrl}/orders/${orderId}`
+  const orderCode = orderId.slice(0, 8).toUpperCase()
+
+  return `
+<div style="font-family: -apple-system, 'Segoe UI', Helvetica, Arial, sans-serif; max-width: 480px; margin: 0 auto; background: #f9fafb; padding: 32px 16px;">
+  <div style="background: #16a34a; border-radius: 16px 16px 0 0; padding: 24px 28px; text-align: center;">
+    <span style="color: #ffffff; font-size: 18px; font-weight: 700;">🛒 ตลาดชุมชน</span>
+  </div>
+  <div style="background: #ffffff; border-radius: 0 0 16px 16px; padding: 28px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+    <h1 style="font-size: 18px; color: #111827; margin: 0 0 12px;">${title}</h1>
+    <p style="font-size: 14px; color: #4b5563; line-height: 1.6; margin: 0 0 8px;">${body}</p>
+    <p style="font-size: 12px; color: #9ca3af; margin: 0 0 24px;">ออเดอร์ #${orderCode}</p>
+    <a href="${orderUrl}" style="display: inline-block; background: #16a34a; color: #ffffff; text-decoration: none; font-size: 14px; font-weight: 600; padding: 12px 24px; border-radius: 10px;">
+      ดูรายละเอียดออเดอร์
+    </a>
+  </div>
+  <p style="text-align: center; font-size: 12px; color: #9ca3af; margin-top: 20px;">
+    อีเมลนี้ส่งอัตโนมัติจากตลาดชุมชน — เว็บไซต์ตลาดออนไลน์สำหรับชุมชนไทย
+  </p>
+</div>`.trim()
+}
+
 // Creates a notification row, pushes it live if the user is connected via
 // websocket, and best-effort sends email / LINE — failures in the delivery
 // channels never block the DB write or the caller's request.
@@ -37,7 +61,7 @@ export async function notifyOrderStatus({ userId, orderId, title, body }: Notify
         from: process.env.RESEND_FROM_EMAIL!,
         to: user.email,
         subject: `${title} - ตลาดชุมชน`,
-        html: `<p>${body}</p>`,
+        html: renderEmailHtml({ title, body, orderId }),
       })
     } catch (err) {
       console.error("Failed to send order status email", err)
