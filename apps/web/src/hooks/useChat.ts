@@ -15,7 +15,12 @@ export function useChat({ conversationId, token, onMessage }: UseChatOptions) {
   const pingInterval = useRef<ReturnType<typeof setInterval>>()
 
   useEffect(() => {
-    const url = `${process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001"}/api/chat/ws?token=${token}`
+    // Derive the WS URL from the API URL so there's no separate env var to
+    // forget to set — NEXT_PUBLIC_WS_URL defaulted to ws://localhost:3001
+    // and was never configured for production, so chat silently never connected.
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
+    const wsBase = apiUrl.replace(/^http/, "ws")
+    const url = `${wsBase}/chat/ws?token=${token}`
     ws.current = new WebSocket(url)
 
     ws.current.onopen = () => {

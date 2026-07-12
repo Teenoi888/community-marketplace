@@ -1,6 +1,8 @@
 "use client"
 import { useEffect, useRef, useState } from "react"
+import Image from "next/image"
 import { Send, Paperclip, Circle } from "lucide-react"
+import { toast } from "sonner"
 import { useChat } from "@/hooks/useChat"
 import { api } from "@/lib/api"
 import type { Message } from "@cm/types"
@@ -14,7 +16,9 @@ interface ChatWindowProps {
 
 export function ChatWindow({ conversationId, currentUserId, token, otherUser }: ChatWindowProps) {
   const [input, setInput] = useState("")
+  const [uploading, setUploading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const { connected, messages, setMessages, sendMessage } = useChat({ conversationId, token })
 
   // Load history on mount
@@ -33,6 +37,24 @@ export function ChatWindow({ conversationId, currentUserId, token, otherUser }: 
     if (!text) return
     sendMessage(text)
     setInput("")
+  }
+
+  async function handleAttach(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = ""
+    if (!file) return
+    setUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append("file", file)
+      fd.append("folder", "chat")
+      const res = await api.post("/upload", fd, { headers: { "Content-Type": "multipart/form-data" } })
+      sendMessage(res.data.data.url, "image")
+    } catch {
+      toast.error("ส่งรูปไม่สำเร็จ กรุณาลองใหม่")
+    } finally {
+      setUploading(false)
+    }
   }
 
   function formatTime(date: Date | string) {
@@ -73,7 +95,13 @@ export function ChatWindow({ conversationId, currentUserId, token, otherUser }: 
                   ? "bg-primary-600 text-white rounded-br-md"
                   : "bg-white text-gray-800 border border-gray-100 rounded-bl-md shadow-sm"
               }`}>
-                <p className="leading-relaxed">{msg.content}</p>
+                {msg.type === "image" ? (
+                  <a href={msg.content} target="_blank" rel="noopener noreferrer">
+                    <Image src={msg.content} alt="" width={200} height={200} className="rounded-lg object-cover" />
+                  </a>
+                ) : (
+                  <p className="leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
+                )}
                 <p className={`text-[10px] mt-1 ${isMine ? "text-primary-200" : "text-gray-400"} text-right`}>
                   {formatTime(msg.createdAt)}
                 </p>
@@ -86,7 +114,18 @@ export function ChatWindow({ conversationId, currentUserId, token, otherUser }: 
 
       {/* Input */}
       <div className="px-4 py-3 border-t border-gray-100 flex items-center gap-2 bg-white">
-        <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          onChange={handleAttach}
+          className="hidden"
+        />
+        <button
+          onClick={() => fileInputRef.current?.click()}
+          disabled={uploading}
+          className="p-2 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-40"
+        >
           <Paperclip className="w-5 h-5" />
         </button>
         <input

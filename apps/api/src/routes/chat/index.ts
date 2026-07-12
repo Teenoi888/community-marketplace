@@ -9,8 +9,29 @@ const connectedClients = new Map<string, any>()
 
 export async function chatRoutes(app: FastifyInstance) {
 
-  // WebSocket endpoint — ws://localhost:3001/api/chat/ws
-  app.get("/ws", { websocket: true, preHandler: [requireAuth] }, (socket: any, request) => {
+  // WebSocket endpoint — ws://localhost:3001/api/chat/ws?token=...
+  // Browsers can't set custom headers on a WebSocket handshake, so the token
+  // travels as a query param instead of Authorization — verify it that way
+  // rather than requireAuth (which only checks the header and would 401 every
+  // connection).
+  app.get("/ws", {
+    websocket: true,
+    preHandler: [async (request, reply) => {
+      const { token } = request.query as { token?: string }
+      if (!token) return reply.code(401).send({ success: false, error: "Unauthorized" })
+      try {
+        (request as any).user = app.jwt.verify(token)
+      } catch {
+        reply.code(401).send({ success: false, error: "Unauthorized" })
+      }
+    }],
+  }, (connection: any, request) => {
+    // @fastify/websocket v8 passes a SocketStream wrapper (a Duplex), not the
+    // raw WebSocket — .send()/.on("message")/.readyState all live on
+    // connection.socket. Calling them on the wrapper directly is a silent
+    // no-op (Duplex has its own unrelated "data"/"end" events), which is why
+    // chat never actually sent or received anything.
+    const socket = connection.socket
     const { userId } = (request as any).user as { userId: string }
 
     connectedClients.set(userId, socket)
