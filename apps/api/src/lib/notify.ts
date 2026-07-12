@@ -37,6 +37,53 @@ function renderEmailHtml({ title, body, orderId }: { title: string; body: string
 </div>`.trim()
 }
 
+function renderLineFlexMessage({ title, body, orderId }: { title: string; body: string; orderId: string }) {
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.chumchon.market"
+  const orderUrl = `${appUrl}/orders/${orderId}`
+  const orderCode = orderId.slice(0, 8).toUpperCase()
+
+  return {
+    type: "flex",
+    altText: title,
+    contents: {
+      type: "bubble",
+      header: {
+        type: "box",
+        layout: "vertical",
+        backgroundColor: "#16a34a",
+        paddingAll: "16px",
+        contents: [
+          { type: "text", text: "🛒 ตลาดชุมชน", color: "#ffffff", weight: "bold", size: "md" },
+        ],
+      },
+      body: {
+        type: "box",
+        layout: "vertical",
+        paddingAll: "20px",
+        spacing: "sm",
+        contents: [
+          { type: "text", text: title, weight: "bold", size: "md", color: "#111827", wrap: true },
+          { type: "text", text: body, size: "sm", color: "#4b5563", wrap: true, margin: "sm" },
+          { type: "text", text: `ออเดอร์ #${orderCode}`, size: "xs", color: "#9ca3af", margin: "md" },
+        ],
+      },
+      footer: {
+        type: "box",
+        layout: "vertical",
+        paddingAll: "16px",
+        contents: [
+          {
+            type: "button",
+            style: "primary",
+            color: "#16a34a",
+            action: { type: "uri", label: "ดูรายละเอียดออเดอร์", uri: orderUrl },
+          },
+        ],
+      },
+    },
+  }
+}
+
 // Creates a notification row, pushes it live if the user is connected via
 // websocket, and best-effort sends email / LINE — failures in the delivery
 // channels never block the DB write or the caller's request.
@@ -78,7 +125,7 @@ export async function notifyOrderStatus({ userId, orderId, title, body }: Notify
         },
         body: JSON.stringify({
           to: user.lineUid,
-          messages: [{ type: "text", text: `${title}\n${body}` }],
+          messages: [renderLineFlexMessage({ title, body, orderId })],
         }),
       })
     } catch (err) {
