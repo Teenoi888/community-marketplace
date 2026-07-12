@@ -14,6 +14,16 @@ const categorySchema = z.object({
   isActive:  z.boolean().default(true),
 })
 
+const adminProductUpdateSchema = z.object({
+  name: z.string().min(1).optional(),
+  description: z.string().optional(),
+  price: z.union([z.string(), z.number()]).optional(),
+  stock: z.number().int().optional(),
+  images: z.array(z.string()).optional(),
+  category: z.string().optional(),
+  status: z.enum(["active", "inactive", "out_of_stock"]).optional(),
+})
+
 export async function adminRoutes(app: FastifyInstance) {
 
   // ── Promote current user to admin (protected by ADMIN_SECRET env) ──────────
@@ -73,6 +83,32 @@ export async function adminRoutes(app: FastifyInstance) {
     protectedRoutes.delete("/categories/:id", async (request, reply) => {
       const { id } = request.params as { id: string }
       await db.delete(categories).where(eq(categories.id, id))
+      return { success: true }
+    })
+
+    // ── Product moderation (edit/remove any product regardless of owner) ────
+    protectedRoutes.get("/products", async () => {
+      const rows = await db.query.products.findMany({
+        orderBy: (t, { desc }) => [desc(t.createdAt)],
+        with: { shop: true },
+      })
+      return { success: true, data: rows }
+    })
+
+    protectedRoutes.patch("/products/:id", async (request, reply) => {
+      const { id } = request.params as { id: string }
+      const body = adminProductUpdateSchema.parse(request.body)
+      const [updated] = await db.update(products)
+        .set({ ...body, price: body.price !== undefined ? String(body.price) : undefined })
+        .where(eq(products.id, id))
+        .returning()
+      if (!updated) return reply.code(404).send({ success: false, error: "ไม่พบสินค้า" })
+      return { success: true, data: updated }
+    })
+
+    protectedRoutes.delete("/products/:id", async (request, reply) => {
+      const { id } = request.params as { id: string }
+      await db.delete(products).where(eq(products.id, id))
       return { success: true }
     })
 
