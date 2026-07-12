@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify"
 import { db } from "../../db/index.js"
 import { conversations, messages, users } from "../../db/schema.js"
-import { eq, or, and, desc } from "drizzle-orm"
+import { eq, or, and, desc, ne, isNull, count } from "drizzle-orm"
 import { requireAuth } from "../../middleware/auth.js"
 
 // In-memory socket registry: userId → WebSocket
@@ -80,6 +80,41 @@ export async function chatRoutes(app: FastifyInstance) {
         }
 
         if (msg.type === "ping") socket.send(JSON.stringify({ type: "pong" }))
+
+        // Presence: client asks "is this specific user online right now"
+        // (polled periodically) rather than us tracking who's watching whom.
+        if (msg.type === "check_presence") {
+          const { userId: targetId } = msg
+          const targetSocket = connectedClients.get(targetId)
+          socket.send(JSON.stringify({
+            type: "presence",
+            userId: targetId,
+            online: targetSocket?.readyState === 1,
+          }))
+        }
+
+        // Mark all of the other party's messages in a conversation as read,
+        // then tell their socket (if online) so their sent bubbles flip to
+        // "อ่านแล้ว" live instead of only on next page load.
+        if (msg.type === "mark_read") {
+          const { conversationId } = msg
+          const updated = await db.update(messages)
+            .set({ readAt: new Date() })
+            .where(and(
+              eq(messages.conversationId, conversationId),
+              ne(messages.senderId, userId),
+              isNull(messages.readAt),
+            ))
+            .returning({ senderId: messages.senderId })
+
+          const senderIds = new Set(updated.map(m => m.senderId))
+          for (const senderId of senderIds) {
+            const senderSocket = connectedClients.get(senderId)
+            if (senderSocket?.readyState === 1) {
+              senderSocket.send(JSON.stringify({ type: "messages_read", conversationId, readBy: userId }))
+            }
+          }
+        }
       } catch (e) {
         app.log.error({ err: e }, "Chat WS error")
       }
@@ -136,6 +171,27 @@ export async function chatRoutes(app: FastifyInstance) {
     }))
 
     return { success: true, data: withLastMsg }
+  })
+
+  // Unread message count across all my conversations (for the nav badge)
+  app.get("/unread-count", { preHandler: [requireAuth] }, async (request) => {
+    const { userId } = (request as any).user as { userId: string }
+
+    const myConvs = await db.query.conversations.findMany({
+      where: or(eq(conversations.buyerId, userId), eq(conversations.sellerId, userId)),
+      columns: { id: true },
+    })
+    if (!myConvs.length) return { success: true, data: { count: 0 } }
+
+    const counts = await Promise.all(myConvs.map(c =>
+      db.select({ total: count() }).from(messages).where(and(
+        eq(messages.conversationId, c.id),
+        ne(messages.senderId, userId),
+        isNull(messages.readAt),
+      ))
+    ))
+
+    return { success: true, data: { count: counts.reduce((sum, [row]) => sum + row.total, 0) } }
   })
 
   // Get messages in a conversation

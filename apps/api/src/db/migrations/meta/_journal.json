@@ -57,6 +57,13 @@
       "when": 1783876322442,
       "tag": "0007_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1783884914592,
+      "tag": "0008_message_read_receipts",
+      "breakpoints": true
     }
   ]
 }

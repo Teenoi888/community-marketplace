@@ -1,7 +1,7 @@
 "use client"
 import { useEffect, useRef, useState } from "react"
 import Image from "next/image"
-import { Send, Paperclip, Circle } from "lucide-react"
+import { Send, Paperclip, Circle, Check, CheckCheck } from "lucide-react"
 import { toast } from "sonner"
 import { useChat } from "@/hooks/useChat"
 import { api } from "@/lib/api"
@@ -19,7 +19,11 @@ export function ChatWindow({ conversationId, currentUserId, token, otherUser }: 
   const [uploading, setUploading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-  const { connected, messages, setMessages, sendMessage } = useChat({ conversationId, token })
+  const { otherOnline, messages, setMessages, sendMessage, markRead } = useChat({
+    conversationId,
+    token,
+    otherUserId: otherUser.id,
+  })
 
   // Load history on mount
   useEffect(() => {
@@ -31,6 +35,14 @@ export function ChatWindow({ conversationId, currentUserId, token, otherUser }: 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
+
+  // The window being open/focused counts as "read" — mark on open and every
+  // time a new message arrives while it's still the active conversation.
+  useEffect(() => {
+    if (messages.some(m => m.senderId !== currentUserId && !m.readAt)) {
+      markRead()
+    }
+  }, [conversationId, messages, currentUserId, markRead])
 
   function handleSend() {
     const text = input.trim()
@@ -70,12 +82,12 @@ export function ChatWindow({ conversationId, currentUserId, token, otherUser }: 
             {otherUser.name.charAt(0)}
           </div>
           <Circle
-            className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 fill-current ${connected ? "text-green-500" : "text-gray-300"}`}
+            className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 fill-current ${otherOnline ? "text-green-500" : "text-gray-300"}`}
           />
         </div>
         <div>
           <div className="font-semibold text-gray-900 text-sm">{otherUser.name}</div>
-          <div className="text-xs text-gray-400">{connected ? "ออนไลน์" : "ออฟไลน์"}</div>
+          <div className="text-xs text-gray-400">{otherOnline ? "ออนไลน์" : "ออฟไลน์"}</div>
         </div>
       </div>
 
@@ -86,29 +98,42 @@ export function ChatWindow({ conversationId, currentUserId, token, otherUser }: 
             เริ่มการสนทนาได้เลย 👋
           </div>
         )}
-        {messages.map((msg) => {
-          const isMine = msg.senderId === currentUserId
-          return (
-            <div key={msg.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${
-                isMine
-                  ? "bg-primary-600 text-white rounded-br-md"
-                  : "bg-white text-gray-800 border border-gray-100 rounded-bl-md shadow-sm"
-              }`}>
-                {msg.type === "image" ? (
-                  <a href={msg.content} target="_blank" rel="noopener noreferrer">
-                    <Image src={msg.content} alt="" width={200} height={200} className="rounded-lg object-cover" />
-                  </a>
-                ) : (
-                  <p className="leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
-                )}
-                <p className={`text-[10px] mt-1 ${isMine ? "text-primary-200" : "text-gray-400"} text-right`}>
-                  {formatTime(msg.createdAt)}
-                </p>
-              </div>
-            </div>
+        {(() => {
+          const lastMineIndex = messages.reduce(
+            (acc, m, i) => (m.senderId === currentUserId ? i : acc), -1
           )
-        })}
+          return messages.map((msg, i) => {
+            const isMine = msg.senderId === currentUserId
+            return (
+              <div key={msg.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
+                <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${
+                  isMine
+                    ? "bg-primary-600 text-white rounded-br-md"
+                    : "bg-white text-gray-800 border border-gray-100 rounded-bl-md shadow-sm"
+                }`}>
+                  {msg.type === "image" ? (
+                    <a href={msg.content} target="_blank" rel="noopener noreferrer">
+                      <Image src={msg.content} alt="" width={200} height={200} className="rounded-lg object-cover" />
+                    </a>
+                  ) : (
+                    <p className="leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
+                  )}
+                  <div className={`flex items-center gap-1 mt-1 ${isMine ? "justify-end text-primary-200" : "justify-end text-gray-400"}`}>
+                    <p className="text-[10px]">{formatTime(msg.createdAt)}</p>
+                    {isMine && i === lastMineIndex && (
+                      <span className="flex items-center gap-0.5 text-[10px]">
+                        {msg.readAt
+                          ? <><CheckCheck className="w-3.5 h-3.5" /> อ่านแล้ว</>
+                          : <Check className="w-3.5 h-3.5" />
+                        }
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })
+        })()}
         <div ref={bottomRef} />
       </div>
 

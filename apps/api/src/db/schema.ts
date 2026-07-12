@@ -153,6 +153,7 @@ export const messages = pgTable("messages", {
   senderId: uuid("sender_id").references(() => users.id).notNull(),
   content: text("content").notNull(),
   type: messageTypeEnum("type").default("text").notNull(),
+  readAt: timestamp("read_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 })
 

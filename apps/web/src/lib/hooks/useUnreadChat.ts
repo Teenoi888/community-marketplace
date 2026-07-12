@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, useCallback } from "react"
 import { api } from "@/lib/api"
 import { useAuthStore } from "@/lib/store/auth"
 
-export function useNotifications() {
+export function useUnreadChat() {
   const user = useAuthStore((s) => s.user)
   const [unreadCount, setUnreadCount] = useState(0)
   const ws = useRef<WebSocket | null>(null)
@@ -11,8 +11,8 @@ export function useNotifications() {
 
   const refreshUnreadCount = useCallback(() => {
     if (!user) return
-    api.get("/notifications/unread-count")
-      .then((r) => setUnreadCount(r.data.data))
+    api.get("/chat/unread-count")
+      .then((r) => setUnreadCount(r.data.data.count))
       .catch(() => {})
   }, [user])
 
@@ -27,11 +27,13 @@ export function useNotifications() {
     const token = localStorage.getItem("access_token")
     if (!token) return
 
-    // Same fix as useChat: derive from NEXT_PUBLIC_API_URL rather than a
-    // separate NEXT_PUBLIC_WS_URL that was never set for production.
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api"
     const url = `${apiUrl.replace(/^http/, "ws")}/chat/ws?token=${token}`
     ws.current = new WebSocket(url)
+
+    // Periodic refetch as a safety net — e.g. after reading a conversation
+    // in another tab, which this hook has no direct signal for.
+    const refreshInterval = setInterval(refreshUnreadCount, 20_000)
 
     ws.current.onopen = () => {
       pingInterval.current = setInterval(() => {
@@ -41,7 +43,9 @@ export function useNotifications() {
 
     ws.current.onmessage = (event) => {
       const msg = JSON.parse(event.data)
-      if (msg.type === "notification") {
+      // The server echoes send_message back to the sender too, so only
+      // count it as unread when someone else sent it to us.
+      if (msg.type === "new_message" && msg.data.senderId !== user.id) {
         setUnreadCount((c) => c + 1)
       }
     }
@@ -51,6 +55,7 @@ export function useNotifications() {
     return () => {
       ws.current?.close()
       clearInterval(pingInterval.current)
+      clearInterval(refreshInterval)
     }
   }, [user, refreshUnreadCount])
 

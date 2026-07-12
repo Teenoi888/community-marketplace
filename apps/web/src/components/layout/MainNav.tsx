@@ -8,6 +8,7 @@ import { useCartStore } from "@/lib/store/cart"
 import { api } from "@/lib/api"
 import { useInactivityLogout } from "@/lib/hooks/useInactivityLogout"
 import { useNotifications } from "@/lib/hooks/useNotifications"
+import { useUnreadChat } from "@/lib/hooks/useUnreadChat"
 
 export function MainNav() {
   const router = useRouter()
@@ -30,6 +31,7 @@ export function MainNav() {
 
   useInactivityLogout()
   const { unreadCount } = useNotifications()
+  const { unreadCount: unreadChatCount } = useUnreadChat()
 
   // Restore session
   useEffect(() => {
@@ -84,7 +86,13 @@ export function MainNav() {
             </Link>
 
             {/* Search */}
-            <div className="flex-1">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (searchQuery.trim()) router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`)
+              }}
+              className="flex-1"
+            >
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
@@ -95,7 +103,7 @@ export function MainNav() {
                   className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-gray-50"
                 />
               </div>
-            </div>
+            </form>
 
             {/* Desktop actions */}
             <div className="hidden sm:flex items-center gap-3">
@@ -108,6 +116,9 @@ export function MainNav() {
               {user && (
                 <Link href="/chat" className="relative p-2 text-gray-600 hover:text-gray-900">
                   <MessageSquare className="w-5 h-5" />
+                  {mounted && unreadChatCount > 0 && (
+                    <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">{unreadChatCount > 99 ? "99+" : unreadChatCount}</span>
+                  )}
                 </Link>
               )}
               <Link href="/notifications" className="relative p-2 text-gray-600 hover:text-gray-900">
@@ -259,7 +270,13 @@ export function MainNav() {
                     <Package className="w-5 h-5 text-gray-400" /> จัดการร้านค้า
                   </Link>
                   <Link href="/chat" onClick={closeMobile} className="flex items-center gap-3 px-5 py-3 text-gray-700 hover:bg-gray-50 active:bg-gray-100 text-sm font-medium">
-                    <MessageSquare className="w-5 h-5 text-gray-400" /> แชท
+                    <span className="relative">
+                      <MessageSquare className="w-5 h-5 text-gray-400" />
+                      {mounted && unreadChatCount > 0 && (
+                        <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 text-white text-[9px] rounded-full flex items-center justify-center">{unreadChatCount > 9 ? "9+" : unreadChatCount}</span>
+                      )}
+                    </span>
+                    แชท
                   </Link>
                   {hasCommunity && (
                     <Link href="/my-community" onClick={closeMobile} className="flex items-center gap-3 px-5 py-3 text-gray-700 hover:bg-gray-50 active:bg-gray-100 text-sm font-medium">
