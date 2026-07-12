@@ -1,5 +1,6 @@
 import Image from "next/image"
-import { MapPin, Package, Users } from "lucide-react"
+import Link from "next/link"
+import { MapPin, Package, Users, ChevronLeft } from "lucide-react"
 import { ProductCard } from "@/components/marketplace/ProductCard"
 import { JoinCommunityActions } from "@/components/community/JoinCommunityActions"
 
@@ -36,6 +37,16 @@ export default async function CommunityPage({ params }: Props) {
           <Image src={community.bannerUrl} alt="" fill className="object-cover" />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
+      </div>
+
+      {/* Back button */}
+      <div className="bg-white border-b border-gray-100 px-4 sm:px-6 lg:px-8 py-2">
+        <div className="max-w-7xl mx-auto">
+          <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors py-1">
+            <ChevronLeft className="w-4 h-4" />
+            กลับหน้าแรก
+          </Link>
+        </div>
       </div>
 
       {/* Profile strip: Logo ซ้อน banner + ชื่อ + ปุ่ม */}

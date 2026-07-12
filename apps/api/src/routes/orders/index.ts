@@ -52,6 +52,13 @@ export async function orderRoutes(app: FastifyInstance) {
       status: "pending_payment",
     }).returning()
 
+    // Reserve stock immediately when order is placed (prevents overselling)
+    for (const { product, quantity } of lineItems) {
+      await db.update(products)
+        .set({ stock: sql`GREATEST(0, ${products.stock} - ${quantity})` })
+        .where(eq(products.id, product.id))
+    }
+
     // Insert order items
     await db.insert(orderItems).values(
       lineItems.map(({ product, quantity, price }) => ({
