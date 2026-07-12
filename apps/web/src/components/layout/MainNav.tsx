@@ -1,13 +1,15 @@
 "use client"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { ShoppingCart, Search, Bell, Menu, Store, User, LogOut, ChevronDown, X, Home, Package, MessageSquare, ShoppingBag } from "lucide-react"
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect, useCallback } from "react"
 import { useAuthStore } from "@/lib/store/auth"
 import { useCartStore } from "@/lib/store/cart"
 import { api } from "@/lib/api"
 import { useInactivityLogout } from "@/lib/hooks/useInactivityLogout"
 
 export function MainNav() {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -16,6 +18,14 @@ export function MainNav() {
   const { user, setUser, logout } = useAuthStore()
   const cartCount = useCartStore((s) => s.itemCount())
   const [mounted, setMounted] = useState(false)
+
+  const handleLogout = useCallback(async () => {
+    try { await api.post("/auth/logout") } catch { /* ignore */ }
+    logout()
+    setDropdownOpen(false)
+    setMobileOpen(false)
+    router.push("/login")
+  }, [logout, router])
 
   useInactivityLogout()
 
@@ -125,7 +135,7 @@ export function MainNav() {
                         )}
                         <div className="border-t border-gray-100 my-1" />
                         <button
-                          onClick={() => { logout(); setDropdownOpen(false) }}
+                          onClick={handleLogout}
                           className="flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 w-full text-left"
                         >
                           <LogOut className="w-4 h-4" /> ออกจากระบบ
@@ -253,7 +263,7 @@ export function MainNav() {
                     {hasCommunity ? "ชุมชนของฉัน" : "เปิดร้านชุมชน"}
                   </Link>
                   <button
-                    onClick={() => { logout(); closeMobile() }}
+                    onClick={handleLogout}
                     className="flex items-center gap-3 px-5 py-3 text-red-600 hover:bg-red-50 w-full text-left text-sm font-medium mt-1"
                   >
                     <LogOut className="w-5 h-5" /> ออกจากระบบ
