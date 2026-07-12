@@ -1,8 +1,10 @@
 "use client"
 import Link from "next/link"
 import Image from "next/image"
+import { useRouter } from "next/navigation"
 import { ShoppingCart, MapPin } from "lucide-react"
 import { useCartStore } from "@/lib/store/cart"
+import { useAuthStore } from "@/lib/store/auth"
 import { toast } from "sonner"
 import type { ProductWithShop } from "@cm/types"
 
@@ -16,9 +18,17 @@ function formatPrice(price: number) {
 
 export function ProductCard({ product }: ProductCardProps) {
   const addItem = useCartStore((s) => s.addItem)
+  const user = useAuthStore((s) => s.user)
+  const router = useRouter()
 
   function handleAddToCart(e: React.MouseEvent) {
     e.preventDefault()
+    if (!user) {
+      toast.error("กรุณาเข้าสู่ระบบก่อนเพิ่มสินค้าลงตะกร้า", {
+        action: { label: "เข้าสู่ระบบ", onClick: () => router.push("/login") },
+      })
+      return
+    }
     addItem(
       { id: product.id, name: product.name, price: product.price, stock: product.stock, images: product.images },
       product.shop.id,

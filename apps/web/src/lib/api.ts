@@ -15,12 +15,13 @@ api.interceptors.request.use((config) => {
   return config
 })
 
-// Auto-refresh on 401
+// Auto-refresh on 401 — only for authenticated requests (those that already had a token)
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config
-    if (error.response?.status === 401 && !original._retry) {
+    const hadToken = !!original.headers?.Authorization
+    if (error.response?.status === 401 && hadToken && !original._retry) {
       original._retry = true
       try {
         const { data } = await axios.post(
@@ -33,7 +34,7 @@ api.interceptors.response.use(
         return api(original)
       } catch {
         localStorage.removeItem("access_token")
-        window.location.href = "/login"
+        // Don't auto-redirect — let protected pages handle this themselves
       }
     }
     return Promise.reject(error)

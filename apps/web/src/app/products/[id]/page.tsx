@@ -6,6 +6,7 @@ import Link from "next/link"
 import { ShoppingCart, ArrowLeft, Store, MapPin, Package } from "lucide-react"
 import { api } from "@/lib/api"
 import { useCartStore } from "@/lib/store/cart"
+import { useAuthStore } from "@/lib/store/auth"
 import { MainNav } from "@/components/layout/MainNav"
 import { toast } from "sonner"
 
@@ -38,6 +39,7 @@ export default function ProductDetailPage() {
   const [qty, setQty] = useState(1)
   const [addingToCart, setAddingToCart] = useState(false)
   const { addItem } = useCartStore()
+  const user = useAuthStore((s) => s.user)
 
   useEffect(() => {
     api.get(`/products/${id}`)
@@ -48,6 +50,12 @@ export default function ProductDetailPage() {
 
   function addToCart() {
     if (!product) return
+    if (!user) {
+      toast.error("กรุณาเข้าสู่ระบบก่อนเพิ่มสินค้าลงตะกร้า", {
+        action: { label: "เข้าสู่ระบบ", onClick: () => router.push("/login") },
+      })
+      return
+    }
     setAddingToCart(true)
     try {
       addItem(
@@ -124,7 +132,10 @@ export default function ProductDetailPage() {
             </div>
 
             {product.description && (
-              <p className="text-gray-600 leading-relaxed">{product.description}</p>
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
+                <h2 className="text-sm font-semibold text-gray-500 mb-2">รายละเอียดสินค้า</h2>
+                <p className="text-gray-700 leading-relaxed">{product.description}</p>
+              </div>
             )}
 
             {/* Shop info */}
