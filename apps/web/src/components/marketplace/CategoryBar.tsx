@@ -1,37 +1,69 @@
 "use client"
-import { useState } from "react"
+import { useEffect, useState, Suspense } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import { api } from "@/lib/api"
 
-const CATEGORIES = [
-  { id: "all", label: "ทั้งหมด", emoji: "🛒" },
-  { id: "agriculture", label: "เกษตร", emoji: "🌾" },
-  { id: "processed_food", label: "อาหารแปรรูป", emoji: "🥫" },
-  { id: "fresh_produce", label: "ผักผลไม้สด", emoji: "🥬" },
-  { id: "handicraft", label: "งานฝีมือ", emoji: "🧶" },
-  { id: "herb", label: "สมุนไพร", emoji: "🌿" },
-  { id: "seafood", label: "ประมง", emoji: "🐟" },
-  { id: "beverage", label: "เครื่องดื่ม", emoji: "🍵" },
-  { id: "otop", label: "OTOP", emoji: "🏆" },
-]
+interface Category {
+  id: string
+  slug: string
+  name: string
+  emoji: string
+}
 
-export function CategoryBar() {
-  const [active, setActive] = useState("all")
+const ALL = { id: "all", slug: "all", name: "ทั้งหมด", emoji: "🛒" }
+
+function CategoryBarInner() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const active = searchParams.get("category") || "all"
+  const [categories, setCategories] = useState<Category[]>([])
+
+  useEffect(() => {
+    api.get("/categories")
+      .then(r => setCategories(r.data.data || []))
+      .catch(() => {})
+  }, [])
+
+  function select(slug: string) {
+    if (slug === "all") {
+      router.push("/")
+    } else {
+      router.push(`/?category=${slug}`)
+    }
+  }
+
+  const items = [ALL, ...categories]
 
   return (
     <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-      {CATEGORIES.map((cat) => (
+      {items.map((cat) => (
         <button
-          key={cat.id}
-          onClick={() => setActive(cat.id)}
+          key={cat.slug}
+          onClick={() => select(cat.slug)}
           className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors flex-shrink-0 ${
-            active === cat.id
+            active === cat.slug
               ? "bg-primary-600 text-white shadow-sm"
               : "bg-white text-gray-600 border border-gray-200 hover:border-primary-300 hover:text-primary-600"
           }`}
         >
           <span>{cat.emoji}</span>
-          {cat.label}
+          {cat.name}
         </button>
       ))}
     </div>
+  )
+}
+
+export function CategoryBar() {
+  return (
+    <Suspense fallback={
+      <div className="flex gap-2 overflow-x-auto pb-2">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="h-9 w-24 bg-gray-100 rounded-full animate-pulse flex-shrink-0" />
+        ))}
+      </div>
+    }>
+      <CategoryBarInner />
+    </Suspense>
   )
 }

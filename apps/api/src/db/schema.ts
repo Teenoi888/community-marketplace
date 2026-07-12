@@ -2,6 +2,7 @@ import { pgTable, text, uuid, integer, numeric, boolean, timestamp, jsonb, pgEnu
 import { relations } from "drizzle-orm"
 
 // Enums
+export const userRoleEnum = pgEnum("user_role", ["user", "admin"])
 export const communityPlanEnum = pgEnum("community_plan", ["free", "community", "pro"])
 export const memberRoleEnum = pgEnum("member_role", ["admin", "seller", "member"])
 export const productStatusEnum = pgEnum("product_status", ["active", "inactive", "out_of_stock"])
@@ -23,6 +24,17 @@ export const users = pgTable("users", {
   googleId: text("google_id").unique(),
   facebookId: text("facebook_id").unique(),
   avatarUrl: text("avatar_url"),
+  role: userRoleEnum("role").default("user").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+})
+
+export const categories = pgTable("categories", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  slug: text("slug").unique().notNull(),
+  name: text("name").notNull(),
+  emoji: text("emoji").default("📦").notNull(),
+  sortOrder: integer("sort_order").default(0).notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 })
 

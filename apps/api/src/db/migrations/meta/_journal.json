@@ -36,6 +36,13 @@
       "when": 1783849215383,
       "tag": "0004_user_addresses",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1783851027724,
+      "tag": "0005_admin_categories",
+      "breakpoints": true
     }
   ]
 }

@@ -5,6 +5,7 @@ import { useState, useRef, useEffect } from "react"
 import { useAuthStore } from "@/lib/store/auth"
 import { useCartStore } from "@/lib/store/cart"
 import { api } from "@/lib/api"
+import { useInactivityLogout } from "@/lib/hooks/useInactivityLogout"
 
 export function MainNav() {
   const [searchQuery, setSearchQuery] = useState("")
@@ -15,6 +16,8 @@ export function MainNav() {
   const { user, setUser, logout } = useAuthStore()
   const cartCount = useCartStore((s) => s.itemCount())
   const [mounted, setMounted] = useState(false)
+
+  useInactivityLogout()
 
   // Restore session
   useEffect(() => {

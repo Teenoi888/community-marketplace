@@ -23,6 +23,8 @@ import { googleRoutes } from "./routes/google/index.js"
 import { facebookRoutes } from "./routes/facebook/index.js"
 import { trackingRoutes } from "./routes/tracking/index.js"
 import { addressRoutes } from "./routes/addresses/index.js"
+import { categoryRoutes } from "./routes/categories/index.js"
+import { adminRoutes } from "./routes/admin/index.js"
 
 // Auto-migrate on startup
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -68,6 +70,8 @@ await app.register(googleRoutes,    { prefix: "/api/google" })
 await app.register(facebookRoutes,  { prefix: "/api/facebook" })
 await app.register(trackingRoutes,  { prefix: "/api/tracking" })
 await app.register(addressRoutes,   { prefix: "/api/addresses" })
+await app.register(categoryRoutes,  { prefix: "/api/categories" })
+await app.register(adminRoutes,     { prefix: "/api/admin" })
 
 // Global error handler
 app.setErrorHandler((error, request, reply) => {

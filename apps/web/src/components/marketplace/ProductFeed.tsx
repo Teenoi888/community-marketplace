@@ -1,18 +1,24 @@
 "use client"
+import { Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 import { useQuery } from "@tanstack/react-query"
 import { ProductCard } from "./ProductCard"
 import { api } from "@/lib/api"
 import type { ProductWithShop } from "@cm/types"
 
-async function fetchProducts(): Promise<ProductWithShop[]> {
-  const res = await api.get<{ data: ProductWithShop[] }>("/products?limit=20")
-  return res.data.data
-}
+function ProductFeedInner() {
+  const searchParams = useSearchParams()
+  const category = searchParams.get("category") || ""
 
-export function ProductFeed() {
   const { data: products, isLoading } = useQuery({
-    queryKey: ["products"],
-    queryFn: fetchProducts,
+    queryKey: ["products", category],
+    queryFn: async () => {
+      const url = category
+        ? `/products?limit=40&category=${category}`
+        : `/products?limit=40`
+      const res = await api.get<{ data: ProductWithShop[] }>(url)
+      return res.data.data
+    },
   })
 
   if (isLoading) {
@@ -32,7 +38,12 @@ export function ProductFeed() {
   }
 
   if (!products?.length) {
-    return <div className="text-gray-400 text-sm text-center py-12">ยังไม่มีสินค้าในระบบ</div>
+    return (
+      <div className="text-center py-16">
+        <p className="text-4xl mb-3">🔍</p>
+        <p className="text-gray-500">ไม่พบสินค้าในหมวดหมู่นี้</p>
+      </div>
+    )
   }
 
   return (
@@ -41,5 +52,25 @@ export function ProductFeed() {
         <ProductCard key={product.id} product={product} />
       ))}
     </div>
+  )
+}
+
+export function ProductFeed() {
+  return (
+    <Suspense fallback={
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        {Array.from({ length: 10 }).map((_, i) => (
+          <div key={i} className="card animate-pulse p-0 overflow-hidden">
+            <div className="aspect-square bg-gray-200" />
+            <div className="p-3 space-y-2">
+              <div className="h-3 bg-gray-200 rounded" />
+              <div className="h-3 bg-gray-200 rounded w-2/3" />
+            </div>
+          </div>
+        ))}
+      </div>
+    }>
+      <ProductFeedInner />
+    </Suspense>
   )
 }
