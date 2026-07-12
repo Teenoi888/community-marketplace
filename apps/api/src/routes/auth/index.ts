@@ -201,13 +201,25 @@ export async function authRoutes(app: FastifyInstance) {
     }
   )
 
-  // My shop
+  // My shop (single — backward compat)
   app.get("/me/shop", { preHandler: [async (req, rep) => { try { await req.jwtVerify() } catch { rep.code(401).send({ success: false }) } }] },
     async (request, reply) => {
       const { userId } = request.user as { userId: string }
       const shop = await db.query.shops.findFirst({ where: eq(shops.ownerId, userId) })
       if (!shop) return reply.code(404).send({ success: false, error: "ยังไม่มีร้านค้า กรุณาลงทะเบียนชุมชนก่อน" })
       return { success: true, data: shop }
+    }
+  )
+
+  // My shops (all) — returns every shop the user owns across communities
+  app.get("/me/shops", { preHandler: [async (req, rep) => { try { await req.jwtVerify() } catch { rep.code(401).send({ success: false }) } }] },
+    async (request) => {
+      const { userId } = request.user as { userId: string }
+      const userShops = await db.query.shops.findMany({
+        where: eq(shops.ownerId, userId),
+        with: { community: true },
+      })
+      return { success: true, data: userShops }
     }
   )
 }

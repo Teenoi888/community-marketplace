@@ -1,6 +1,6 @@
 "use client"
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { Suspense, useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -31,8 +31,11 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
-export default function NewProductPage() {
+// ── Inner component (ใช้ useSearchParams ต้องห่อด้วย Suspense) ──────────────
+function NewProductForm() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const shopIdParam = searchParams.get("shopId") // ถ้ามาจากชุมชนอื่น จะมี shopId ส่งมา
   const [images, setImages] = useState<{ file: File; preview: string }[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -56,9 +59,12 @@ export default function NewProductPage() {
   async function onSubmit(data: FormData) {
     setLoading(true)
     try {
-      // Get user's shop first
-      const shopRes = await api.get("/auth/me/shop")
-      const shopId = shopRes.data.data.id
+      // ใช้ shopId จาก query param (กรณีเปิดร้านในชุมชนอื่น) หรือดึงร้านหลักของ user
+      let shopId = shopIdParam
+      if (!shopId) {
+        const shopRes = await api.get("/auth/me/shop")
+        shopId = shopRes.data.data.id
+      }
 
       // Upload images (skip if R2 not configured)
       const imageUrls: string[] = []
@@ -163,5 +169,18 @@ export default function NewProductPage() {
         </form>
       </div>
     </div>
+  )
+}
+
+// ── Page export ห่อด้วย Suspense ────────────────────────────────────────────
+export default function NewProductPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center text-gray-400">
+        กำลังโหลด...
+      </div>
+    }>
+      <NewProductForm />
+    </Suspense>
   )
 }

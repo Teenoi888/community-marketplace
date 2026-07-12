@@ -23,19 +23,23 @@ export async function productRoutes(app: FastifyInstance) {
     const limitN = Math.min(Number(limit), 50)
     const offset = (Number(page) - 1) * limitN
 
-    // If seller=me, return products for the authenticated user's shop
+    // If seller=me, return products from ALL shops the user owns
     if (seller === "me") {
       try {
         await request.jwtVerify()
         const { userId } = request.user as { userId: string }
-        const shop = await db.query.shops.findFirst({ where: eq(shops.ownerId, userId) })
-        if (!shop) return { success: true, data: [] }
-        const rows = await db.query.products.findMany({
-          where: eq(products.shopId, shop.id),
-          with: { shop: true },
-          limit: limitN,
-          offset,
-        })
+        const userShops = await db.query.shops.findMany({ where: eq(shops.ownerId, userId) })
+        if (!userShops.length) return { success: true, data: [] }
+        const rows = (await Promise.all(
+          userShops.map(shop =>
+            db.query.products.findMany({
+              where: eq(products.shopId, shop.id),
+              with: { shop: { with: { community: true } } },
+            })
+          )
+        )).flat()
+        // sort newest first
+        rows.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
         return { success: true, data: rows }
       } catch {
         return { success: true, data: [] }

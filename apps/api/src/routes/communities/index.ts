@@ -54,15 +54,20 @@ export async function communityRoutes(app: FastifyInstance) {
     if (!community) return reply.code(404).send({ success: false, error: "ไม่พบชุมชน" })
 
     const communityShops = await db.query.shops.findMany({ where: eq(shops.communityId, community.id) })
-    const shopIds = communityShops.map((s) => s.id)
-    const productList = shopIds.length
-      ? await db.query.products.findMany({
-          where: eq(products.shopId, shopIds[0]),
-          with: { shop: { with: { community: true } } },
-        })
+
+    // ดึงสินค้าจากทุกร้านในชุมชน
+    const productList = communityShops.length
+      ? (await Promise.all(
+          communityShops.map(shop =>
+            db.query.products.findMany({
+              where: and(eq(products.shopId, shop.id), eq(products.status, "active")),
+              with: { shop: { with: { community: true } } },
+            })
+          )
+        )).flat()
       : []
 
-    return { success: true, data: { community, products: productList } }
+    return { success: true, data: { community, products: productList, shopCount: communityShops.length } }
   })
 
   // Get MY community (the one I'm admin of)
@@ -99,6 +104,84 @@ export async function communityRoutes(app: FastifyInstance) {
     const body = updateSchema.parse(request.body)
     const [updated] = await db.update(communities).set(body).where(eq(communities.id, id)).returning()
     return { success: true, data: updated }
+  })
+
+  // ── Check my membership in a community ─────────────────────────────────────
+  app.get("/:id/my-membership", { preHandler: [requireAuth] }, async (request) => {
+    const { userId } = request.user as { userId: string }
+    const { id } = request.params as { id: string }
+
+    const membership = await db.query.communityMembers.findFirst({
+      where: and(eq(communityMembers.communityId, id), eq(communityMembers.userId, userId)),
+    })
+    const shop = membership
+      ? await db.query.shops.findFirst({ where: and(eq(shops.communityId, id), eq(shops.ownerId, userId)) })
+      : null
+
+    return {
+      success: true,
+      data: {
+        isMember: !!membership,
+        role: membership?.role ?? null,
+        hasShop: !!shop,
+        shopId: shop?.id ?? null,
+      }
+    }
+  })
+
+  // ── Join community ──────────────────────────────────────────────────────────
+  app.post("/:id/join", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { userId } = request.user as { userId: string }
+    const { id } = request.params as { id: string }
+
+    const community = await db.query.communities.findFirst({ where: eq(communities.id, id) })
+    if (!community) return reply.code(404).send({ success: false, error: "ไม่พบชุมชน" })
+
+    const existing = await db.query.communityMembers.findFirst({
+      where: and(eq(communityMembers.communityId, id), eq(communityMembers.userId, userId)),
+    })
+    if (existing) return reply.code(400).send({ success: false, error: "คุณเป็นสมาชิกแล้ว" })
+
+    await db.insert(communityMembers).values({ communityId: id, userId, role: "member" })
+    await db.update(communities).set({ memberCount: sql`${communities.memberCount} + 1` }).where(eq(communities.id, id))
+
+    return { success: true, data: { role: "member" } }
+  })
+
+  // ── Open a shop inside a community (member → seller) ──────────────────────
+  app.post("/:id/open-shop", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { userId } = request.user as { userId: string }
+    const { id } = request.params as { id: string }
+
+    // ต้องเป็นสมาชิกก่อน
+    const membership = await db.query.communityMembers.findFirst({
+      where: and(eq(communityMembers.communityId, id), eq(communityMembers.userId, userId)),
+    })
+    if (!membership) return reply.code(403).send({ success: false, error: "กรุณาเข้าร่วมชุมชนก่อน" })
+
+    // ตรวจสอบว่ามีร้านในชุมชนนี้แล้วหรือยัง
+    const existingShop = await db.query.shops.findFirst({
+      where: and(eq(shops.communityId, id), eq(shops.ownerId, userId)),
+    })
+    if (existingShop) return reply.code(400).send({ success: false, error: "คุณมีร้านในชุมชนนี้แล้ว", shopId: existingShop.id })
+
+    const { shopName, shopDescription } = request.body as { shopName?: string; shopDescription?: string }
+    const user = await db.query.users.findFirst({ where: eq(users.id, userId) })
+
+    // สร้างร้าน
+    const [shop] = await db.insert(shops).values({
+      communityId: id,
+      ownerId: userId,
+      name: shopName || `ร้านของ${user?.name || "ฉัน"}`,
+      description: shopDescription,
+    }).returning()
+
+    // อัปเกรด role เป็น seller
+    await db.update(communityMembers)
+      .set({ role: "seller" })
+      .where(and(eq(communityMembers.communityId, id), eq(communityMembers.userId, userId)))
+
+    return reply.code(201).send({ success: true, data: { shop, role: "seller" } })
   })
 
   // Create community (requires auth)
