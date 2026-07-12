@@ -29,6 +29,7 @@ import { trackingRoutes } from "./routes/tracking/index.js"
 import { addressRoutes } from "./routes/addresses/index.js"
 import { categoryRoutes } from "./routes/categories/index.js"
 import { adminRoutes } from "./routes/admin/index.js"
+import { notificationRoutes } from "./routes/notifications/index.js"
 
 // Auto-migrate on startup
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -78,6 +79,7 @@ await app.register(trackingRoutes,  { prefix: "/api/tracking" })
 await app.register(addressRoutes,   { prefix: "/api/addresses" })
 await app.register(categoryRoutes,  { prefix: "/api/categories" })
 await app.register(adminRoutes,     { prefix: "/api/admin" })
+await app.register(notificationRoutes, { prefix: "/api/notifications" })
 
 // ── Seed endpoint (no auth required — protected by ADMIN_SECRET only) ──────
 app.post("/api/admin/seed", async (request, reply) => {

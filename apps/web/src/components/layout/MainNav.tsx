@@ -7,6 +7,7 @@ import { useAuthStore } from "@/lib/store/auth"
 import { useCartStore } from "@/lib/store/cart"
 import { api } from "@/lib/api"
 import { useInactivityLogout } from "@/lib/hooks/useInactivityLogout"
+import { useNotifications } from "@/lib/hooks/useNotifications"
 
 export function MainNav() {
   const router = useRouter()
@@ -28,6 +29,7 @@ export function MainNav() {
   }, [logout, router])
 
   useInactivityLogout()
+  const { unreadCount } = useNotifications()
 
   // Restore session
   useEffect(() => {
@@ -103,8 +105,11 @@ export function MainNav() {
                   <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">{cartCount > 99 ? "99+" : cartCount}</span>
                 )}
               </Link>
-              <Link href="/notifications" className="p-2 text-gray-600 hover:text-gray-900">
+              <Link href="/notifications" className="relative p-2 text-gray-600 hover:text-gray-900">
                 <Bell className="w-5 h-5" />
+                {mounted && unreadCount > 0 && (
+                  <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">{unreadCount > 99 ? "99+" : unreadCount}</span>
+                )}
               </Link>
 
               {user ? (
@@ -235,6 +240,15 @@ export function MainNav() {
                 <>
                   <Link href="/orders" onClick={closeMobile} className="flex items-center gap-3 px-5 py-3 text-gray-700 hover:bg-gray-50 active:bg-gray-100 text-sm font-medium">
                     <ShoppingBag className="w-5 h-5 text-gray-400" /> คำสั่งซื้อของฉัน
+                  </Link>
+                  <Link href="/notifications" onClick={closeMobile} className="flex items-center gap-3 px-5 py-3 text-gray-700 hover:bg-gray-50 active:bg-gray-100 text-sm font-medium">
+                    <span className="relative">
+                      <Bell className="w-5 h-5 text-gray-400" />
+                      {mounted && unreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 text-white text-[9px] rounded-full flex items-center justify-center">{unreadCount > 9 ? "9+" : unreadCount}</span>
+                      )}
+                    </span>
+                    การแจ้งเตือน
                   </Link>
                   <Link href="/dashboard" onClick={closeMobile} className="flex items-center gap-3 px-5 py-3 text-gray-700 hover:bg-gray-50 active:bg-gray-100 text-sm font-medium">
                     <Package className="w-5 h-5 text-gray-400" /> จัดการร้านค้า

@@ -4,6 +4,16 @@ import { db } from "../../db/index.js"
 import { orders, orderItems, products, shops } from "../../db/schema.js"
 import { eq, and, gte, lte, sql } from "drizzle-orm"
 import { requireAuth } from "../../middleware/auth.js"
+import { notifyOrderStatus } from "../../lib/notify.js"
+
+const STATUS_LABELS: Record<string, string> = {
+  pending_payment: "รอชำระเงิน",
+  paid: "ชำระแล้ว",
+  preparing: "กำลังเตรียมสินค้า",
+  shipped: "จัดส่งแล้ว",
+  delivered: "ส่งถึงแล้ว",
+  cancelled: "ยกเลิก",
+}
 
 const createOrderSchema = z.object({
   shopId: z.string().uuid(),
@@ -173,6 +183,15 @@ export async function orderRoutes(app: FastifyInstance) {
       .set({ status: status as any, updatedAt: new Date() })
       .where(eq(orders.id, id))
       .returning()
+
+    const label = STATUS_LABELS[status] || status
+    await notifyOrderStatus({
+      userId: updated.buyerId,
+      orderId: updated.id,
+      title: `ออเดอร์ #${updated.id.slice(0, 8).toUpperCase()} — ${label}`,
+      body: `สถานะออเดอร์ของคุณเปลี่ยนเป็น "${label}"`,
+    })
+
     return { success: true, data: updated }
   })
 
@@ -184,6 +203,14 @@ export async function orderRoutes(app: FastifyInstance) {
       .set({ trackingNumber, logisticsProvider, status: "shipped" as any, updatedAt: new Date() })
       .where(eq(orders.id, id))
       .returning()
+
+    await notifyOrderStatus({
+      userId: updated.buyerId,
+      orderId: updated.id,
+      title: `ออเดอร์ #${updated.id.slice(0, 8).toUpperCase()} — จัดส่งแล้ว`,
+      body: `พัสดุถูกส่งผ่าน ${logisticsProvider} เลขพัสดุ ${trackingNumber}`,
+    })
+
     return { success: true, data: updated }
   })
 }

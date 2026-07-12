@@ -156,6 +156,18 @@ export const messages = pgTable("messages", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 })
 
+export const notifications = pgTable("notifications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  type: text("type").notNull(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  link: text("link"),
+  orderId: uuid("order_id").references(() => orders.id, { onDelete: "cascade" }),
+  isRead: boolean("is_read").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+})
+
 export const userAddresses = pgTable("user_addresses", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
@@ -179,6 +191,11 @@ export const usersRelations = relations(users, ({ many }) => ({
 
 export const userAddressesRelations = relations(userAddresses, ({ one }) => ({
   user: one(users, { fields: [userAddresses.userId], references: [users.id] }),
+}))
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, { fields: [notifications.userId], references: [users.id] }),
+  order: one(orders, { fields: [notifications.orderId], references: [orders.id] }),
 }))
 
 export const communitiesRelations = relations(communities, ({ many }) => ({
