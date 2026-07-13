@@ -95,6 +95,7 @@ export default function AdminPage() {
 
   const menuItems = [
     { href: "/admin/categories", label: "จัดการหมวดหมู่สินค้า", icon: Tag, desc: "เพิ่ม ลบ แก้ไขหมวดหมู่ที่แสดงในหน้าแรก" },
+    { href: "/admin/products", label: "สินค้าทุกร้าน", icon: Package, desc: "แก้ไขหรือลบสินค้าของร้านไหนก็ได้" },
     { href: "/admin/users", label: "จัดการผู้ใช้", icon: Users, desc: "ดูรายชื่อผู้ใช้ เปลี่ยน role admin" },
     { href: "/admin/activity-logs", label: "Log กิจกรรม", icon: ScrollText, desc: "ตรวจสอบว่า admin คนไหนทำอะไรไปบ้าง" },
   ]
