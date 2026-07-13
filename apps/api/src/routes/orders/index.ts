@@ -2,11 +2,8 @@ import type { FastifyInstance } from "fastify"
 import { z } from "zod"
 import { db } from "../../db/index.js"
 import { orders, orderItems, products, shops } from "../../db/schema.js"
-import { eq, and, gte, lte, sql } from "drizzle-orm"
+import { eq, sql } from "drizzle-orm"
 import { requireAuth } from "../../middleware/auth.js"
-<<<<<<< HEAD
-import { sendLinePush } from "../line/index.js"
-=======
 import { notifyOrderStatus } from "../../lib/notify.js"
 
 const STATUS_LABELS: Record<string, string> = {
@@ -17,7 +14,6 @@ const STATUS_LABELS: Record<string, string> = {
   delivered: "ส่งถึงแล้ว",
   cancelled: "ยกเลิก",
 }
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
 
 const createOrderSchema = z.object({
   shopId: z.string().uuid(),
@@ -84,32 +80,27 @@ export async function orderRoutes(app: FastifyInstance) {
       }))
     )
 
-<<<<<<< HEAD
-    // Notify seller via LINE (fire-and-forget)
+    // Notify seller about new order (fire-and-forget)
     try {
       const shop = await db.query.shops.findFirst({
         where: eq(shops.id, body.shopId),
         with: { owner: true },
       })
-      if (shop?.owner?.lineUid) {
+      if (shop?.owner) {
         const itemSummary = lineItems
-          .map(i => `  • ${i.product.name} x${i.quantity} = ฿${(i.price * i.quantity).toLocaleString()}`)
-          .join("\n")
-        await sendLinePush(
-          shop.owner.lineUid,
-          `🛒 มีออเดอร์ใหม่!\n\n` +
-          `รหัส: #${order.id.slice(0, 8).toUpperCase()}\n` +
-          `ยอดรวม: ฿${total.toLocaleString()}\n\n` +
-          `รายการสินค้า:\n${itemSummary}\n\n` +
-          `👉 ดูออเดอร์: ${process.env.NEXT_PUBLIC_WEB_URL || "https://chumchon.market"}/seller/orders`
-        )
+          .map(i => `${i.product.name} x${i.quantity}`)
+          .join(", ")
+        await notifyOrderStatus({
+          userId: shop.owner.id,
+          orderId: order.id,
+          title: `🛒 มีออเดอร์ใหม่! #${order.id.slice(0, 8).toUpperCase()}`,
+          body: `ยอดรวม ฿${total.toLocaleString()} — ${itemSummary}`,
+        })
       }
     } catch (e) {
-      app.log.warn("LINE notify failed (non-critical):", e)
+      app.log.warn("notify seller failed (non-critical):", e)
     }
 
-=======
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
     return reply.code(201).send({ success: true, data: order })
   })
 
@@ -147,7 +138,6 @@ export async function orderRoutes(app: FastifyInstance) {
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
 
-    // All orders for this shop
     const shopOrders = await db.query.orders.findMany({
       where: eq(orders.shopId, shop.id),
     })
@@ -167,7 +157,6 @@ export async function orderRoutes(app: FastifyInstance) {
       )
       .reduce((sum, o) => sum + Number(o.total), 0)
 
-    // Count products
     const shopProducts = await db.query.products.findMany({
       where: eq(products.shopId, shop.id),
     })
@@ -208,35 +197,6 @@ export async function orderRoutes(app: FastifyInstance) {
   // Update order status (seller)
   app.patch("/:id/status", { preHandler: [requireAuth] }, async (request) => {
     const { id } = request.params as { id: string }
-<<<<<<< HEAD
-    const { status, cancelReason } = request.body as { status: string; cancelReason?: string }
-    const [updated] = await db.update(orders)
-      .set({
-        status: status as any,
-        ...(status === "cancelled" && cancelReason ? { cancelReason } : {}),
-        updatedAt: new Date(),
-      })
-      .where(eq(orders.id, id))
-      .returning()
-
-    // Notify buyer when seller marks as shipped or delivered
-    if (status === "shipped" || status === "delivered") {
-      try {
-        const order = await db.query.orders.findFirst({
-          where: eq(orders.id, id),
-          with: { buyer: true },
-        })
-        if (order?.buyer?.lineUid) {
-          const msg = status === "shipped"
-            ? `🚚 สินค้าของคุณถูกจัดส่งแล้ว!\n\nรหัสออเดอร์: #${id.slice(0, 8).toUpperCase()}\n👉 ติดตามพัสดุได้ที่: ${process.env.NEXT_PUBLIC_WEB_URL || "https://chumchon.market"}/orders/${id}`
-            : `✅ สินค้าถึงมือคุณแล้ว!\n\nรหัสออเดอร์: #${id.slice(0, 8).toUpperCase()}\nขอบคุณที่ใช้บริการตลาดชุมชนครับ 🙏`
-          await sendLinePush(order.buyer.lineUid, msg)
-        }
-      } catch (e) {
-        app.log.warn("LINE notify buyer failed:", e)
-      }
-    }
-=======
     const { status } = request.body as { status: string }
     const [updated] = await db.update(orders)
       .set({ status: status as any, updatedAt: new Date() })
@@ -250,12 +210,11 @@ export async function orderRoutes(app: FastifyInstance) {
       title: `ออเดอร์ #${updated.id.slice(0, 8).toUpperCase()} — ${label}`,
       body: `สถานะออเดอร์ของคุณเปลี่ยนเป็น "${label}"`,
     })
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
 
     return { success: true, data: updated }
   })
 
-  // Update tracking number (seller)
+  // Update tracking number (seller) — auto-sets status to "shipped"
   app.patch("/:id/tracking", { preHandler: [requireAuth] }, async (request) => {
     const { id } = request.params as { id: string }
     const { trackingNumber, logisticsProvider } = request.body as { trackingNumber: string; logisticsProvider: string }
@@ -263,8 +222,6 @@ export async function orderRoutes(app: FastifyInstance) {
       .set({ trackingNumber, logisticsProvider, status: "shipped" as any, updatedAt: new Date() })
       .where(eq(orders.id, id))
       .returning()
-<<<<<<< HEAD
-=======
 
     await notifyOrderStatus({
       userId: updated.buyerId,
@@ -273,7 +230,6 @@ export async function orderRoutes(app: FastifyInstance) {
       body: `พัสดุถูกส่งผ่าน ${logisticsProvider} เลขพัสดุ ${trackingNumber}`,
     })
 
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
     return { success: true, data: updated }
   })
 }

@@ -12,38 +12,20 @@
     {
       "idx": 1,
       "version": "7",
-<<<<<<< HEAD
-      "when": 1720440060000,
-      "tag": "0001_user_addresses",
-=======
       "when": 1783796498289,
       "tag": "0001_watery_toxin",
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
       "breakpoints": true
     },
     {
       "idx": 2,
       "version": "7",
-<<<<<<< HEAD
-      "when": 1720440120000,
-      "tag": "0002_admin_categories",
-=======
       "when": 1783799261593,
       "tag": "0002_curious_pestilence",
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
       "breakpoints": true
     },
     {
       "idx": 3,
       "version": "7",
-<<<<<<< HEAD
-      "when": 1720440180000,
-      "tag": "0003_password_resets",
-      "breakpoints": true
-    }
-  ]
-}
-=======
       "when": 1783799400000,
       "tag": "0003_fix_users_google_facebook_columns",
       "breakpoints": true
@@ -85,4 +67,3 @@
     }
   ]
 }
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c

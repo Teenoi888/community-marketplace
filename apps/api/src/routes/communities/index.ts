@@ -67,9 +67,6 @@ export async function communityRoutes(app: FastifyInstance) {
         )).flat()
       : []
 
-<<<<<<< HEAD
-    return { success: true, data: { community, products: productList, shopCount: communityShops.length } }
-=======
     return {
       success: true,
       data: {
@@ -82,7 +79,6 @@ export async function communityRoutes(app: FastifyInstance) {
         shop: communityShops.length === 1 ? communityShops[0] : null,
       },
     }
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
   })
 
   // Get MY community (the one I'm admin of)

@@ -1,11 +1,7 @@
 import type { FastifyInstance } from "fastify"
 import { db } from "../../db/index.js"
 import { conversations, messages, users } from "../../db/schema.js"
-<<<<<<< HEAD
-import { eq, or, and, desc } from "drizzle-orm"
-=======
 import { eq, or, and, desc, ne, isNull, count } from "drizzle-orm"
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
 import { requireAuth } from "../../middleware/auth.js"
 
 // In-memory socket registry: userId → WebSocket
@@ -13,10 +9,6 @@ const connectedClients = new Map<string, any>()
 
 export async function chatRoutes(app: FastifyInstance) {
 
-<<<<<<< HEAD
-  // WebSocket endpoint — ws://localhost:3001/api/chat/ws
-  app.get("/ws", { websocket: true, preHandler: [requireAuth] }, (socket: any, request) => {
-=======
   // WebSocket endpoint — ws://localhost:3001/api/chat/ws?token=...
   // Browsers can't set custom headers on a WebSocket handshake, so the token
   // travels as a query param instead of Authorization — verify it that way
@@ -40,7 +32,6 @@ export async function chatRoutes(app: FastifyInstance) {
     // no-op (Duplex has its own unrelated "data"/"end" events), which is why
     // chat never actually sent or received anything.
     const socket = connection.socket
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
     const { userId } = (request as any).user as { userId: string }
 
     connectedClients.set(userId, socket)
@@ -89,8 +80,6 @@ export async function chatRoutes(app: FastifyInstance) {
         }
 
         if (msg.type === "ping") socket.send(JSON.stringify({ type: "pong" }))
-<<<<<<< HEAD
-=======
 
         // Presence: client asks "is this specific user online right now"
         // (polled periodically) rather than us tracking who's watching whom.
@@ -126,7 +115,6 @@ export async function chatRoutes(app: FastifyInstance) {
             }
           }
         }
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
       } catch (e) {
         app.log.error({ err: e }, "Chat WS error")
       }
@@ -171,11 +159,7 @@ export async function chatRoutes(app: FastifyInstance) {
       orderBy: [desc(conversations.updatedAt)],
     })
 
-<<<<<<< HEAD
-    // Attach last message for each
-=======
     // Attach last message + per-conversation unread count for each
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
     const withLastMsg = await Promise.all(convs.map(async (c) => {
       const lastMsg = await db.query.messages.findFirst({
         where: eq(messages.conversationId, c.id),
@@ -183,23 +167,17 @@ export async function chatRoutes(app: FastifyInstance) {
       })
       const otherId = c.buyerId === userId ? c.sellerId : c.buyerId
       const other = await db.query.users.findFirst({ where: eq(users.id, otherId) })
-<<<<<<< HEAD
-      return { ...c, lastMessage: lastMsg, otherUser: other }
-=======
       const [{ total: unreadCount }] = await db.select({ total: count() }).from(messages).where(and(
         eq(messages.conversationId, c.id),
         ne(messages.senderId, userId),
         isNull(messages.readAt),
       ))
       return { ...c, lastMessage: lastMsg, unreadCount, otherUser: other ? { ...other, passwordHash: undefined } : other }
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
     }))
 
     return { success: true, data: withLastMsg }
   })
 
-<<<<<<< HEAD
-=======
   // Unread message count across all my conversations (for the nav badge)
   app.get("/unread-count", { preHandler: [requireAuth] }, async (request) => {
     const { userId } = (request as any).user as { userId: string }
@@ -221,7 +199,6 @@ export async function chatRoutes(app: FastifyInstance) {
     return { success: true, data: { count: counts.reduce((sum, [row]) => sum + row.total, 0) } }
   })
 
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
   // Get messages in a conversation
   app.get("/conversations/:id/messages", { preHandler: [requireAuth] }, async (request) => {
     const { id } = request.params as { id: string }

@@ -3,10 +3,7 @@ import Link from "next/link"
 import { MapPin, Package, Users, ChevronLeft } from "lucide-react"
 import { ProductCard } from "@/components/marketplace/ProductCard"
 import { JoinCommunityActions } from "@/components/community/JoinCommunityActions"
-<<<<<<< HEAD
-=======
 import { ChatWithSellerButton } from "@/components/community/ChatWithSellerButton"
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
 
 interface Props { params: { slug: string } }
 
@@ -30,20 +27,12 @@ export default async function CommunityPage({ params }: Props) {
     )
   }
 
-<<<<<<< HEAD
-  const { community, products } = res.data
-=======
   const { community, products, shop } = res.data
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
 
   return (
     <main className="min-h-screen bg-gray-50">
 
-<<<<<<< HEAD
-      {/* Banner — ชิดขอบบนสุด */}
-=======
       {/* Banner */}
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
       <div className="relative h-44 md:h-56 bg-gradient-to-br from-primary-400 to-primary-700">
         {community.bannerUrl && (
           <Image src={community.bannerUrl} alt="" fill className="object-cover" />
@@ -51,9 +40,6 @@ export default async function CommunityPage({ params }: Props) {
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
       </div>
 
-<<<<<<< HEAD
-      {/* Profile strip: ปุ่มกลับ + Logo + ชื่อ + ปุ่มเข้าร่วม */}
-=======
       {/* Back button */}
       <div className="bg-white border-b border-gray-100 px-4 sm:px-6 lg:px-8 py-2">
         <div className="max-w-7xl mx-auto">
@@ -65,24 +51,12 @@ export default async function CommunityPage({ params }: Props) {
       </div>
 
       {/* Profile strip: Logo ซ้อน banner + ชื่อ + ปุ่ม */}
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
       <div className="bg-white border-b border-gray-100 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center gap-4">
 
-<<<<<<< HEAD
-            {/* ปุ่มกลับหน้าแรก */}
-            <Link href="/" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900 transition-colors flex-shrink-0">
-              <ChevronLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">กลับหน้าแรก</span>
-            </Link>
-
-            {/* Logo */}
-            <div className="relative w-20 h-20 md:w-24 md:h-24 rounded-2xl border-2 border-gray-100 bg-white shadow-md overflow-hidden flex-shrink-0">
-=======
             {/* Logo — ดึงขึ้นไปซ้อน banner ด้วย -mt-14 */}
             <div className="relative -mt-14 z-10 w-20 h-20 md:w-24 md:h-24 rounded-2xl border-4 border-white bg-white shadow-lg overflow-hidden flex-shrink-0">
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
               {community.logoUrl ? (
                 <Image src={community.logoUrl} alt={community.name} width={96} height={96} className="object-cover" />
               ) : (
@@ -101,14 +75,9 @@ export default async function CommunityPage({ params }: Props) {
               </div>
             </div>
 
-<<<<<<< HEAD
-            {/* Join / Open shop actions */}
-            <div className="flex-shrink-0">
-=======
             {/* Chat / Join / Open shop actions */}
             <div className="flex items-center gap-2 flex-shrink-0">
               {shop && <ChatWithSellerButton sellerId={shop.ownerId} />}
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
               <JoinCommunityActions communityId={community.id} communityName={community.name} />
             </div>
           </div>

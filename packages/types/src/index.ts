@@ -134,10 +134,7 @@ export interface Message {
   senderId: string
   content: string
   type: MessageType
-<<<<<<< HEAD
-=======
   readAt?: Date | null
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
   createdAt: Date
 }
 

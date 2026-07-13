@@ -1,26 +1,17 @@
 import type { FastifyInstance } from "fastify"
 import bcrypt from "bcryptjs"
 import { z } from "zod"
-<<<<<<< HEAD
-import { db } from "../../db/index.js"
-import { users, shops, passwordResets } from "../../db/schema.js"
-import { eq, and, gt } from "drizzle-orm"
-=======
 import { Resend } from "resend"
 import { db } from "../../db/index.js"
 import { users, shops, otpCodes, passwordResets } from "../../db/schema.js"
 import { eq, and, isNull, desc, gt } from "drizzle-orm"
 
 const resend = new Resend(process.env.RESEND_API_KEY || "re_placeholder")
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
 
 const registerSchema = z.object({
   name: z.string().min(2),
   phone: z.string().min(9).max(10),
-<<<<<<< HEAD
-=======
   email: z.string().email("อีเมลไม่ถูกต้อง").optional().or(z.literal("")),
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
   password: z.string().min(6),
 })
 
@@ -29,8 +20,6 @@ const loginSchema = z.object({
   password: z.string(),
 })
 
-<<<<<<< HEAD
-=======
 const otpRequestSchema = z.object({ email: z.string().email() })
 const otpVerifySchema = z.object({ email: z.string().email(), code: z.string().length(6) })
 
@@ -41,20 +30,12 @@ const resetPasswordSchema = z.object({
   newPassword: z.string().min(6, "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร"),
 })
 
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
 function createTokens(app: FastifyInstance, userId: string) {
   const accessToken = app.jwt.sign({ userId }, { expiresIn: "7d" })
   const refreshToken = app.jwt.sign({ userId, type: "refresh" }, { expiresIn: "30d" })
   return { accessToken, refreshToken }
 }
 
-<<<<<<< HEAD
-function generateOtp() {
-  return String(Math.floor(100000 + Math.random() * 900000))
-}
-
-=======
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
 export async function authRoutes(app: FastifyInstance) {
 
   // Register
@@ -63,22 +44,16 @@ export async function authRoutes(app: FastifyInstance) {
     const existing = await db.query.users.findFirst({ where: eq(users.phone, body.phone) })
     if (existing) return reply.code(409).send({ success: false, error: "เบอร์โทรนี้มีในระบบแล้ว" })
 
-<<<<<<< HEAD
-=======
     if (body.email) {
       const existingEmail = await db.query.users.findFirst({ where: eq(users.email, body.email) })
       if (existingEmail) return reply.code(409).send({ success: false, error: "อีเมลนี้มีในระบบแล้ว" })
     }
 
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
     const passwordHash = await bcrypt.hash(body.password, 12)
     const [user] = await db.insert(users).values({
       name: body.name,
       phone: body.phone,
-<<<<<<< HEAD
-=======
       email: body.email || null,
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
       passwordHash,
     }).returning()
 
@@ -116,9 +91,6 @@ export async function authRoutes(app: FastifyInstance) {
     }
   })
 
-<<<<<<< HEAD
-  // ── Forgot password — request OTP ──────────────────────────────────────────
-=======
   // Request email OTP
   app.post("/otp/request", async (request, reply) => {
     const { email } = otpRequestSchema.parse(request.body)
@@ -215,7 +187,6 @@ export async function authRoutes(app: FastifyInstance) {
   })
 
   // Request phone-based password reset OTP
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
   app.post("/forgot-password", async (request, reply) => {
     const { phone } = request.body as { phone: string }
     if (!phone || phone.length < 9) {
@@ -232,11 +203,7 @@ export async function authRoutes(app: FastifyInstance) {
     // ลบ OTP เก่าของเบอร์นี้ก่อน
     await db.delete(passwordResets).where(eq(passwordResets.phone, phone))
 
-<<<<<<< HEAD
-    const otp = generateOtp()
-=======
     const otp = Math.floor(100000 + Math.random() * 900000).toString()
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000) // 15 นาที
 
     await db.insert(passwordResets).values({ phone, otp, expiresAt })
@@ -251,11 +218,7 @@ export async function authRoutes(app: FastifyInstance) {
     }
   })
 
-<<<<<<< HEAD
-  // ── Reset password — verify OTP + set new password ─────────────────────────
-=======
   // Reset password (phone) — verify OTP + set new password
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
   app.post("/reset-password", async (request, reply) => {
     const { phone, otp, newPassword } = request.body as {
       phone: string
@@ -292,223 +255,6 @@ export async function authRoutes(app: FastifyInstance) {
     return { success: true, message: "เปลี่ยนรหัสผ่านสำเร็จ" }
   })
 
-<<<<<<< HEAD
-  // ── Diagnostic: check if phone exists (no password) ────────────────────────
-  app.get("/check", async (request, reply) => {
-    const { phone } = request.query as { phone?: string }
-    if (!phone) return reply.code(400).send({ error: "phone required" })
-    const user = await db.query.users.findFirst({
-      where: eq(users.phone, phone),
-    })
-    return {
-      exists: !!user,
-      name: user?.name ?? null,
-      hasPassword: !!user?.passwordHash,
-      createdAt: user?.createdAt ?? null,
-    }
-  })
-
-  // ── LINE Login ─────────────────────────────────────────────────────────────
-  app.get("/line", async (request, reply) => {
-    const channelId = process.env.LINE_CHANNEL_ID!
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://cmapi-production-5f4f.up.railway.app/api"
-    const redirectUri = `${apiUrl}/auth/line/callback`   // NEXT_PUBLIC_API_URL already includes /api
-    const state = Math.random().toString(36).substring(2)
-    const params = new URLSearchParams({
-      response_type: "code",
-      client_id: channelId,
-      redirect_uri: redirectUri,
-      state,
-      scope: "profile openid email",
-    })
-    return reply.redirect(`https://access.line.me/oauth2/v2.1/authorize?${params}`)
-  })
-
-  app.get("/line/callback", async (request, reply) => {
-    const { code, error } = request.query as { code?: string; error?: string }
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.chumchon.market"
-    if (error || !code) return reply.redirect(`${appUrl}/login?error=line_cancelled`)
-
-    try {
-      const channelId = process.env.LINE_CHANNEL_ID!
-      const channelSecret = process.env.LINE_CHANNEL_SECRET!
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://cmapi-production-5f4f.up.railway.app/api"
-      const redirectUri = `${apiUrl}/auth/line/callback`  // NEXT_PUBLIC_API_URL already includes /api
-
-      // Exchange code → access token
-      const tokenRes = await fetch("https://api.line.me/oauth2/v2.1/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({
-          grant_type: "authorization_code",
-          code,
-          redirect_uri: redirectUri,
-          client_id: channelId,
-          client_secret: channelSecret,
-        }),
-      })
-      const tokenData = await tokenRes.json() as { access_token: string; error?: string }
-      if (tokenData.error || !tokenData.access_token) throw new Error("LINE token error")
-
-      // Get profile
-      const profileRes = await fetch("https://api.line.me/v2/profile", {
-        headers: { Authorization: `Bearer ${tokenData.access_token}` },
-      })
-      const profile = await profileRes.json() as { userId: string; displayName: string; pictureUrl?: string; email?: string }
-
-      // Find or create user
-      let user = await db.query.users.findFirst({ where: eq(users.lineUid, profile.userId) })
-      if (user) {
-        if (!user.lineUid) await db.update(users).set({ lineUid: profile.userId }).where(eq(users.id, user.id))
-      } else {
-        const [newUser] = await db.insert(users).values({
-          name: profile.displayName || "LINE User",
-          lineUid: profile.userId,
-          avatarUrl: profile.pictureUrl ?? null,
-        }).returning()
-        user = newUser
-      }
-
-      const { accessToken, refreshToken } = createTokens(app, user.id)
-      reply.setCookie("refreshToken", refreshToken, { httpOnly: true, sameSite: "lax", path: "/" })
-      return reply.redirect(`${appUrl}/auth/callback?token=${accessToken}`)
-    } catch (err) {
-      app.log.error(err)
-      return reply.redirect(`${process.env.NEXT_PUBLIC_APP_URL || "https://www.chumchon.market"}/login?error=line_failed`)
-    }
-  })
-
-  // ── Google OAuth ───────────────────────────────────────────────────────────
-  app.get("/google", async (request, reply) => {
-    const clientId = process.env.GOOGLE_CLIENT_ID!
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://cmapi-production-5f4f.up.railway.app/api"
-    const redirectUri = `${apiUrl}/auth/google/callback`
-    const params = new URLSearchParams({
-      client_id: clientId,
-      redirect_uri: redirectUri,
-      response_type: "code",
-      scope: "openid email profile",
-      access_type: "online",
-    })
-    return reply.redirect(`https://accounts.google.com/o/oauth2/v2/auth?${params}`)
-  })
-
-  app.get("/google/callback", async (request, reply) => {
-    const { code, error } = request.query as { code?: string; error?: string }
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.chumchon.market"
-    if (error || !code) return reply.redirect(`${appUrl}/login?error=google_cancelled`)
-
-    try {
-      const clientId = process.env.GOOGLE_CLIENT_ID!
-      const clientSecret = process.env.GOOGLE_CLIENT_SECRET!
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://cmapi-production-5f4f.up.railway.app/api"
-      const redirectUri = `${apiUrl}/auth/google/callback`
-
-      // Exchange code → access token
-      const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
-        method: "POST",
-        headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        body: new URLSearchParams({ code, client_id: clientId, client_secret: clientSecret, redirect_uri: redirectUri, grant_type: "authorization_code" }),
-      })
-      const tokenData = await tokenRes.json() as { access_token: string }
-
-      // Get profile
-      const profileRes = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-        headers: { Authorization: `Bearer ${tokenData.access_token}` },
-      })
-      const profile = await profileRes.json() as { sub: string; name: string; email?: string; picture?: string }
-
-      // Find or create user
-      let user = await db.query.users.findFirst({ where: eq(users.googleUid, profile.sub) })
-      if (!user && profile.email) {
-        user = await db.query.users.findFirst({ where: eq(users.email, profile.email) })
-      }
-      if (user) {
-        if (!user.googleUid) await db.update(users).set({ googleUid: profile.sub }).where(eq(users.id, user.id))
-      } else {
-        const [newUser] = await db.insert(users).values({
-          name: profile.name || "Google User",
-          email: profile.email ?? null,
-          googleUid: profile.sub,
-          avatarUrl: profile.picture ?? null,
-        }).returning()
-        user = newUser
-      }
-
-      const { accessToken, refreshToken } = createTokens(app, user.id)
-      reply.setCookie("refreshToken", refreshToken, { httpOnly: true, sameSite: "lax", path: "/" })
-      return reply.redirect(`${appUrl}/auth/callback?token=${accessToken}`)
-    } catch (err) {
-      app.log.error(err)
-      return reply.redirect(`${process.env.NEXT_PUBLIC_APP_URL || "https://www.chumchon.market"}/login?error=google_failed`)
-    }
-  })
-
-  // ── Facebook OAuth ─────────────────────────────────────────────────────────
-  app.get("/facebook", async (request, reply) => {
-    const appId = process.env.FACEBOOK_APP_ID!
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://cmapi-production-5f4f.up.railway.app/api"
-    const redirectUri = `${apiUrl}/auth/facebook/callback`
-    const params = new URLSearchParams({
-      client_id: appId,
-      redirect_uri: redirectUri,
-      scope: "email,public_profile",
-      response_type: "code",
-    })
-    return reply.redirect(`https://www.facebook.com/v19.0/dialog/oauth?${params}`)
-  })
-
-  app.get("/facebook/callback", async (request, reply) => {
-    const { code, error } = request.query as { code?: string; error?: string }
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://www.chumchon.market"
-    if (error || !code) return reply.redirect(`${appUrl}/login?error=facebook_cancelled`)
-
-    try {
-      const appId = process.env.FACEBOOK_APP_ID!
-      const appSecret = process.env.FACEBOOK_APP_SECRET!
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "https://cmapi-production-5f4f.up.railway.app/api"
-      const redirectUri = `${apiUrl}/auth/facebook/callback`
-
-      // Exchange code → access token
-      const tokenRes = await fetch(
-        `https://graph.facebook.com/v19.0/oauth/access_token?client_id=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}&client_secret=${appSecret}&code=${code}`
-      )
-      const tokenData = await tokenRes.json() as { access_token: string }
-
-      // Get profile
-      const profileRes = await fetch(
-        `https://graph.facebook.com/me?fields=id,name,email,picture.type(large)&access_token=${tokenData.access_token}`
-      )
-      const profile = await profileRes.json() as { id: string; name: string; email?: string; picture?: { data?: { url?: string } } }
-
-      // Find or create user
-      let user = await db.query.users.findFirst({ where: eq(users.facebookUid, profile.id) })
-      if (!user && profile.email) {
-        user = await db.query.users.findFirst({ where: eq(users.email, profile.email) })
-      }
-      if (user) {
-        if (!user.facebookUid) await db.update(users).set({ facebookUid: profile.id }).where(eq(users.id, user.id))
-      } else {
-        const [newUser] = await db.insert(users).values({
-          name: profile.name || "Facebook User",
-          email: profile.email ?? null,
-          facebookUid: profile.id,
-          avatarUrl: profile.picture?.data?.url ?? null,
-        }).returning()
-        user = newUser
-      }
-
-      const { accessToken, refreshToken } = createTokens(app, user.id)
-      reply.setCookie("refreshToken", refreshToken, { httpOnly: true, sameSite: "lax", path: "/" })
-      return reply.redirect(`${appUrl}/auth/callback?token=${accessToken}`)
-    } catch (err) {
-      app.log.error(err)
-      return reply.redirect(`${process.env.NEXT_PUBLIC_APP_URL || "https://www.chumchon.market"}/login?error=facebook_failed`)
-    }
-  })
-
-=======
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
   // Logout
   app.post("/logout", async (_, reply) => {
     reply.clearCookie("refreshToken", { path: "/" })
@@ -534,11 +280,7 @@ export async function authRoutes(app: FastifyInstance) {
     }
   )
 
-<<<<<<< HEAD
-  // My shops (all)
-=======
   // My shops (all) — returns every shop the user owns across communities
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
   app.get("/me/shops", { preHandler: [async (req, rep) => { try { await req.jwtVerify() } catch { rep.code(401).send({ success: false }) } }] },
     async (request) => {
       const { userId } = request.user as { userId: string }

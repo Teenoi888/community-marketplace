@@ -5,27 +5,6 @@ import type { Message } from "@cm/types"
 interface UseChatOptions {
   conversationId: string
   token: string
-<<<<<<< HEAD
-  onMessage?: (msg: Message) => void
-}
-
-export function useChat({ conversationId, token, onMessage }: UseChatOptions) {
-  const ws = useRef<WebSocket | null>(null)
-  const [connected, setConnected] = useState(false)
-  const [messages, setMessages] = useState<Message[]>([])
-  const pingInterval = useRef<ReturnType<typeof setInterval>>()
-
-  useEffect(() => {
-    const url = `${process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001"}/api/chat/ws?token=${token}`
-    ws.current = new WebSocket(url)
-
-    ws.current.onopen = () => {
-      setConnected(true)
-      // Keep-alive ping every 25s
-      pingInterval.current = setInterval(() => {
-        ws.current?.send(JSON.stringify({ type: "ping" }))
-      }, 25_000)
-=======
   otherUserId?: string
   onMessage?: (msg: Message) => void
 }
@@ -62,7 +41,6 @@ export function useChat({ conversationId, token, otherUserId, onMessage }: UseCh
         ws.current?.send(JSON.stringify({ type: "ping" }))
       }, 25_000)
       presenceInterval.current = setInterval(checkPresence, 15_000)
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
     }
 
     ws.current.onmessage = (event) => {
@@ -72,39 +50,27 @@ export function useChat({ conversationId, token, otherUserId, onMessage }: UseCh
         setMessages((prev) => [...prev, msg])
         onMessage?.(msg)
       }
-<<<<<<< HEAD
-=======
       if (data.type === "presence" && data.userId === otherUserId) {
         setOtherOnline(data.online)
       }
       if (data.type === "messages_read" && data.conversationId === conversationId) {
         setMessages((prev) => prev.map(m => ({ ...m, readAt: m.readAt ?? new Date().toISOString() as any })))
       }
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
     }
 
     ws.current.onclose = () => {
       setConnected(false)
-<<<<<<< HEAD
-      clearInterval(pingInterval.current)
-=======
       setOtherOnline(false)
       clearInterval(pingInterval.current)
       clearInterval(presenceInterval.current)
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
     }
 
     return () => {
       ws.current?.close()
       clearInterval(pingInterval.current)
-<<<<<<< HEAD
-    }
-  }, [conversationId, token])
-=======
       clearInterval(presenceInterval.current)
     }
   }, [conversationId, token, otherUserId])
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
 
   const sendMessage = useCallback((content: string, type: "text" | "image" | "order_ref" = "text") => {
     if (ws.current?.readyState === WebSocket.OPEN) {
@@ -112,9 +78,6 @@ export function useChat({ conversationId, token, otherUserId, onMessage }: UseCh
     }
   }, [conversationId])
 
-<<<<<<< HEAD
-  return { connected, messages, setMessages, sendMessage }
-=======
   const markRead = useCallback(() => {
     if (ws.current?.readyState === WebSocket.OPEN) {
       ws.current.send(JSON.stringify({ type: "mark_read", conversationId }))
@@ -122,5 +85,4 @@ export function useChat({ conversationId, token, otherUserId, onMessage }: UseCh
   }, [conversationId])
 
   return { connected, otherOnline, messages, setMessages, sendMessage, markRead }
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
 }

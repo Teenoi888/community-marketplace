@@ -1,13 +1,9 @@
 "use client"
 import { useEffect, useRef, useState } from "react"
-<<<<<<< HEAD
-import { Send, Paperclip, Circle } from "lucide-react"
-=======
 import Image from "next/image"
 import { Send, Paperclip, Circle, Check, CheckCheck } from "lucide-react"
 import { toast } from "sonner"
 import { useQueryClient } from "@tanstack/react-query"
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
 import { useChat } from "@/hooks/useChat"
 import { api } from "@/lib/api"
 import type { Message } from "@cm/types"
@@ -21,10 +17,6 @@ interface ChatWindowProps {
 
 export function ChatWindow({ conversationId, currentUserId, token, otherUser }: ChatWindowProps) {
   const [input, setInput] = useState("")
-<<<<<<< HEAD
-  const bottomRef = useRef<HTMLDivElement>(null)
-  const { connected, messages, setMessages, sendMessage } = useChat({ conversationId, token })
-=======
   const [uploading, setUploading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -34,7 +26,6 @@ export function ChatWindow({ conversationId, currentUserId, token, otherUser }: 
     token,
     otherUserId: otherUser.id,
   })
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
 
   // Load history on mount
   useEffect(() => {
@@ -47,8 +38,6 @@ export function ChatWindow({ conversationId, currentUserId, token, otherUser }: 
     bottomRef.current?.scrollIntoView({ behavior: "smooth" })
   }, [messages])
 
-<<<<<<< HEAD
-=======
   // The window being open/focused counts as "read" — mark on open and every
   // time a new message arrives while it's still the active conversation.
   // Also invalidate the sidebar's conversation list so its unread badge for
@@ -61,7 +50,6 @@ export function ChatWindow({ conversationId, currentUserId, token, otherUser }: 
     }
   }, [conversationId, messages, currentUserId, markRead, queryClient])
 
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
   function handleSend() {
     const text = input.trim()
     if (!text) return
@@ -69,8 +57,6 @@ export function ChatWindow({ conversationId, currentUserId, token, otherUser }: 
     setInput("")
   }
 
-<<<<<<< HEAD
-=======
   async function handleAttach(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     e.target.value = ""
@@ -89,17 +75,12 @@ export function ChatWindow({ conversationId, currentUserId, token, otherUser }: 
     }
   }
 
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
   function formatTime(date: Date | string) {
     return new Date(date).toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })
   }
 
   return (
-<<<<<<< HEAD
-    <div className="flex flex-col h-full bg-white rounded-xl overflow-hidden border border-gray-200">
-=======
     <div className="flex flex-col h-full bg-white overflow-hidden sm:rounded-xl sm:border sm:border-gray-200">
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-gray-50">
         <div className="relative">
@@ -107,20 +88,12 @@ export function ChatWindow({ conversationId, currentUserId, token, otherUser }: 
             {otherUser.name.charAt(0)}
           </div>
           <Circle
-<<<<<<< HEAD
-            className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 fill-current ${connected ? "text-green-500" : "text-gray-300"}`}
-=======
             className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 fill-current ${otherOnline ? "text-green-500" : "text-gray-300"}`}
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
           />
         </div>
         <div>
           <div className="font-semibold text-gray-900 text-sm">{otherUser.name}</div>
-<<<<<<< HEAD
-          <div className="text-xs text-gray-400">{connected ? "ออนไลน์" : "ออฟไลน์"}</div>
-=======
           <div className="text-xs text-gray-400">{otherOnline ? "ออนไลน์" : "ออฟไลน์"}</div>
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
         </div>
       </div>
 
@@ -131,25 +104,6 @@ export function ChatWindow({ conversationId, currentUserId, token, otherUser }: 
             เริ่มการสนทนาได้เลย 👋
           </div>
         )}
-<<<<<<< HEAD
-        {messages.map((msg) => {
-          const isMine = msg.senderId === currentUserId
-          return (
-            <div key={msg.id} className={`flex ${isMine ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-sm ${
-                isMine
-                  ? "bg-primary-600 text-white rounded-br-md"
-                  : "bg-white text-gray-800 border border-gray-100 rounded-bl-md shadow-sm"
-              }`}>
-                <p className="leading-relaxed">{msg.content}</p>
-                <p className={`text-[10px] mt-1 ${isMine ? "text-primary-200" : "text-gray-400"} text-right`}>
-                  {formatTime(msg.createdAt)}
-                </p>
-              </div>
-            </div>
-          )
-        })}
-=======
         {(() => {
           const lastMineIndex = messages.reduce(
             (acc, m, i) => (m.senderId === currentUserId ? i : acc), -1
@@ -186,15 +140,11 @@ export function ChatWindow({ conversationId, currentUserId, token, otherUser }: 
             )
           })
         })()}
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
         <div ref={bottomRef} />
       </div>
 
       {/* Input */}
       <div className="px-4 py-3 border-t border-gray-100 flex items-center gap-2 bg-white">
-<<<<<<< HEAD
-        <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
-=======
         <input
           ref={fileInputRef}
           type="file"
@@ -207,7 +157,6 @@ export function ChatWindow({ conversationId, currentUserId, token, otherUser }: 
           disabled={uploading}
           className="p-2 text-gray-400 hover:text-gray-600 transition-colors disabled:opacity-40"
         >
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
           <Paperclip className="w-5 h-5" />
         </button>
         <input

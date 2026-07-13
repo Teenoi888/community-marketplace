@@ -136,42 +136,6 @@ export default function MyCommunityPage() {
         )}
       </div>
 
-<<<<<<< HEAD
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Profile header: Logo (overlap banner) + Name/Location side by side */}
-        <div className="flex items-end gap-5 -mt-14 mb-5">
-
-          {/* Logo */}
-          <div className="relative flex-shrink-0 z-10">
-            <div className="relative w-28 h-28 rounded-2xl border-4 border-white bg-white shadow-lg overflow-hidden">
-              {currentLogoPreview
-                ? <Image src={currentLogoPreview} alt={community.name} fill className="object-cover" />
-                : <div className="w-full h-full bg-primary-100 flex items-center justify-center text-primary-600 font-bold text-3xl">
-                    {community.name.charAt(0)}
-                  </div>
-              }
-              {editMode && (
-                <label className="absolute inset-0 flex items-center justify-center bg-black/40 cursor-pointer">
-                  <Upload className="w-5 h-5 text-white" />
-                  <input type="file" accept="image/*" className="hidden" onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) {
-                      if (file.size > 2 * 1024 * 1024) { toast.error("โลโก้ต้องไม่เกิน 2MB"); return }
-                      setNewLogoFile(file)
-                      setNewLogoPreview(URL.createObjectURL(file))
-                    }
-                  }} />
-                </label>
-              )}
-            </div>
-            {editMode && (
-              <span className="absolute -bottom-1 -right-1 bg-primary-600 text-white text-xs px-1.5 py-0.5 rounded-md pointer-events-none">แก้ไข</span>
-            )}
-          </div>
-
-          {/* Name + location */}
-          <div className="pb-1 min-w-0">
-=======
       <div className="max-w-3xl mx-auto px-4">
         {/* Logo + Header */}
         <div className="relative -mt-16 mb-6 flex items-end gap-4">
@@ -197,20 +161,10 @@ export default function MyCommunityPage() {
             )}
           </div>
           <div className="pb-1 flex-1">
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
             {editMode ? (
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-<<<<<<< HEAD
-                className="text-2xl font-bold text-gray-900 border-b-2 border-primary-400 bg-transparent outline-none w-full mb-1"
-              />
-            ) : (
-              <h1 className="text-2xl font-bold text-gray-900 truncate">{community.name}</h1>
-            )}
-            <div className="flex items-center gap-1 text-gray-500 text-sm mt-1">
-              <MapPin className="w-3.5 h-3.5 flex-shrink-0" />
-=======
                 className="text-2xl font-bold text-gray-900 border-b-2 border-primary-400 bg-transparent outline-none w-full"
               />
             ) : (
@@ -218,7 +172,6 @@ export default function MyCommunityPage() {
             )}
             <div className="flex items-center gap-1 text-gray-500 text-sm mt-1">
               <MapPin className="w-3.5 h-3.5" />
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
               {community.district}, {community.province}
             </div>
           </div>

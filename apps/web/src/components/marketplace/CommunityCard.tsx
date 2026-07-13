@@ -25,30 +25,17 @@ export function CommunityCard({ community }: CommunityCardProps) {
 
         <div className="p-4">
           {/* Logo + Name */}
-<<<<<<< HEAD
-          <div className="flex items-start gap-3 -mt-8 mb-2">
-            <div className="w-14 h-14 rounded-xl border-2 border-white bg-white shadow-sm overflow-hidden flex-shrink-0">
-              {community.logoUrl ? (
-                <Image src={community.logoUrl} alt={community.name} width={56} height={56} className="object-cover" />
-              ) : (
-                <div className="w-full h-full bg-primary-100 flex items-center justify-center text-primary-600 font-bold text-lg">
-=======
           <div className="flex items-center gap-3 mb-2">
             <div className="w-11 h-11 rounded-xl bg-primary-100 overflow-hidden flex-shrink-0">
               {community.logoUrl ? (
                 <Image src={community.logoUrl} alt={community.name} width={44} height={44} className="object-cover" />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-primary-600 font-bold text-lg">
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
                   {community.name.charAt(0)}
                 </div>
               )}
             </div>
-<<<<<<< HEAD
-            <div className="pt-8">
-=======
             <div>
->>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
               <h3 className="font-semibold text-gray-900 text-sm leading-tight line-clamp-1 group-hover:text-primary-600 transition-colors">
                 {community.name}
               </h3>
