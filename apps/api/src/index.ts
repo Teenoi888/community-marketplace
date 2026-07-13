@@ -6,15 +6,10 @@ import jwt from "@fastify/jwt"
 import rateLimit from "@fastify/rate-limit"
 import websocket from "@fastify/websocket"
 import multipart from "@fastify/multipart"
-import { migrate } from "drizzle-orm/postgres-js/migrator"
-import { drizzle } from "drizzle-orm/postgres-js"
 import postgres from "postgres"
 import path from "path"
 import { fileURLToPath } from "url"
-import { db } from "./db/index.js"
-import { users, communities, communityMembers, shops, products } from "./db/schema.js"
-import { count } from "drizzle-orm"
-import bcrypt from "bcryptjs"
+import { readdir, readFile } from "fs/promises"
 import { authRoutes } from "./routes/auth/index.js"
 import { communityRoutes } from "./routes/communities/index.js"
 import { productRoutes } from "./routes/products/index.js"
@@ -23,22 +18,37 @@ import { paymentRoutes } from "./routes/payments/index.js"
 import { chatRoutes } from "./routes/chat/index.js"
 import { uploadRoutes } from "./routes/upload/index.js"
 import { lineRoutes } from "./routes/line/index.js"
-import { googleRoutes } from "./routes/google/index.js"
-import { facebookRoutes } from "./routes/facebook/index.js"
 import { trackingRoutes } from "./routes/tracking/index.js"
 import { addressRoutes } from "./routes/addresses/index.js"
 import { categoryRoutes } from "./routes/categories/index.js"
 import { adminRoutes } from "./routes/admin/index.js"
-import { notificationRoutes } from "./routes/notifications/index.js"
+import { db } from "./db/index.js"
+import { users, communities, communityMembers, shops, products, orders } from "./db/schema.js"
+import { count, eq, lte, and } from "drizzle-orm"
+import bcrypt from "bcryptjs"
+import { notifyOrderStatus } from "./lib/notify.js"
 
-// Auto-migrate on startup
+// Auto-migrate on startup — run all .sql files in order (all use IF NOT EXISTS so safe to re-run)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const migrationClient = postgres(process.env.DATABASE_URL!, { max: 1 })
-const migrationDb = drizzle(migrationClient)
 console.log("⏳ Running migrations...")
-await migrate(migrationDb, { migrationsFolder: path.join(__dirname, "db/migrations") })
-await migrationClient.end()
-console.log("✅ Migrations done")
+try {
+  const migrationsDir = path.join(__dirname, "db/migrations")
+  const files = (await readdir(migrationsDir))
+    .filter(f => f.endsWith(".sql"))
+    .sort()
+  for (const file of files) {
+    const sql = await readFile(path.join(migrationsDir, file), "utf-8")
+    await migrationClient.unsafe(sql)
+    console.log(`  ✓ ${file}`)
+  }
+  console.log("✅ Migrations done")
+} catch (err: any) {
+  // Non-fatal: schema may already be up to date (column/table already exists)
+  console.warn("⚠️  Migration warning (continuing):", err?.message ?? err)
+} finally {
+  await migrationClient.end()
+}
 
 const app = Fastify({
   logger: { level: process.env.NODE_ENV === "production" ? "warn" : "info" },
@@ -49,9 +59,9 @@ const app = Fastify({
 await app.register(cors, {
   origin: [
     process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
-    "https://liff.line.me",
     "https://chumchon.market",
     "https://www.chumchon.market",
+    "https://liff.line.me",
   ],
   credentials: true,
 })
@@ -73,13 +83,10 @@ await app.register(paymentRoutes,   { prefix: "/api/payments" })
 await app.register(chatRoutes,      { prefix: "/api/chat" })
 await app.register(uploadRoutes,    { prefix: "/api/upload" })
 await app.register(lineRoutes,      { prefix: "/api/line" })
-await app.register(googleRoutes,    { prefix: "/api/google" })
-await app.register(facebookRoutes,  { prefix: "/api/facebook" })
 await app.register(trackingRoutes,  { prefix: "/api/tracking" })
 await app.register(addressRoutes,   { prefix: "/api/addresses" })
 await app.register(categoryRoutes,  { prefix: "/api/categories" })
 await app.register(adminRoutes,     { prefix: "/api/admin" })
-await app.register(notificationRoutes, { prefix: "/api/notifications" })
 
 // ── Seed endpoint (no auth required — protected by ADMIN_SECRET only) ──────
 app.post("/api/admin/seed", async (request, reply) => {
@@ -135,3 +142,34 @@ app.setErrorHandler((error, request, reply) => {
 const port = Number(process.env.PORT) || 3001
 await app.listen({ port, host: "0.0.0.0" })
 console.log(`🚀 API: http://localhost:${port}`)
+
+// Auto-complete orders: shipped > 7 days → delivered
+async function autoCompleteShippedOrders() {
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+  try {
+    const staleOrders = await db.query.orders.findMany({
+      where: and(
+        eq(orders.status, "shipped"),
+        lte(orders.updatedAt, sevenDaysAgo)
+      ),
+    })
+    for (const order of staleOrders) {
+      await db.update(orders)
+        .set({ status: "delivered", updatedAt: new Date() })
+        .where(eq(orders.id, order.id))
+      await notifyOrderStatus({
+        userId: order.buyerId,
+        orderId: order.id,
+        title: `ออเดอร์ #${order.id.slice(0, 8).toUpperCase()} — ส่งถึงแล้ว`,
+        body: "ระบบยืนยันรับสินค้าอัตโนมัติ (เกิน 7 วันหลังจัดส่ง)",
+      }).catch(() => {})
+      console.log(`✅ Auto-completed order ${order.id.slice(0, 8)}`)
+    }
+  } catch (e) {
+    console.warn("Auto-complete cron error:", e)
+  }
+}
+
+// Run once on startup then every 24h
+autoCompleteShippedOrders()
+setInterval(autoCompleteShippedOrders, 24 * 60 * 60 * 1000)

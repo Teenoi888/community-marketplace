@@ -213,7 +213,47 @@ export default function OrderDetailPage() {
             ชำระเงินเลย
           </Link>
         )}
+
+        {/* Confirm received */}
+        {order.status === "shipped" && (
+          <ConfirmReceivedButton orderId={order.id} onConfirmed={() => setOrder({ ...order, status: "delivered" })} />
+        )}
       </div>
     </main>
+  )
+}
+
+function ConfirmReceivedButton({ orderId, onConfirmed }: { orderId: string; onConfirmed: () => void }) {
+  const [loading, setLoading] = useState(false)
+  const [done, setDone] = useState(false)
+
+  async function handleConfirm() {
+    if (!window.confirm("ยืนยันว่าได้รับสินค้าครบถ้วนแล้ว?")) return
+    setLoading(true)
+    try {
+      await api.patch(`/orders/${orderId}/status`, { status: "delivered" })
+      setDone(true)
+      onConfirmed()
+    } catch {
+      alert("เกิดข้อผิดพลาด กรุณาลองใหม่")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (done) return (
+    <div className="flex items-center justify-center gap-2 py-4 text-green-600 font-semibold">
+      <CheckCircle className="w-5 h-5" /> ยืนยันได้รับสินค้าแล้ว
+    </div>
+  )
+
+  return (
+    <button
+      onClick={handleConfirm}
+      disabled={loading}
+      className="w-full py-4 rounded-2xl bg-green-600 text-white font-semibold text-base hover:bg-green-700 active:scale-95 transition-all disabled:opacity-50"
+    >
+      {loading ? "กำลังยืนยัน..." : "✅ ได้รับสินค้าแล้ว"}
+    </button>
   )
 }

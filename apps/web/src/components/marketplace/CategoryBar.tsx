@@ -10,7 +10,7 @@ interface Category {
   emoji: string
 }
 
-const ALL = { id: "all", slug: "all", name: "ทั้งหมด", emoji: "🛒" }
+const ALL = { id: "all", slug: "all", name: "ทั้งหมด", emoji: "" }
 
 function CategoryBarInner() {
   const router = useRouter()
@@ -46,7 +46,6 @@ function CategoryBarInner() {
               : "bg-white text-gray-600 border border-gray-200 hover:border-primary-300 hover:text-primary-600"
           }`}
         >
-          <span>{cat.emoji}</span>
           {cat.name}
         </button>
       ))}
