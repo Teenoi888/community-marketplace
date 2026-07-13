@@ -80,7 +80,7 @@ export function ChatWindow({ conversationId, currentUserId, token, otherUser }: 
   }
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-xl overflow-hidden border border-gray-200">
+    <div className="flex flex-col h-full bg-white overflow-hidden sm:rounded-xl sm:border sm:border-gray-200">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 bg-gray-50">
         <div className="relative">
