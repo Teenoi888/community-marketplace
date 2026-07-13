@@ -8,6 +8,7 @@ interface Conversation {
   id: string
   otherUser: { id: string; name: string; avatarUrl?: string }
   lastMessage?: { content: string; createdAt: string }
+  unreadCount: number
   updatedAt: string
 }
 
@@ -40,30 +41,44 @@ export function ConversationList({ activeId, onSelect }: Props) {
 
   return (
     <div className="divide-y divide-gray-50">
-      {convs.map((c) => (
-        <button
-          key={c.id}
-          onClick={() => onSelect(c.id, c.otherUser)}
-          className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left ${
-            activeId === c.id ? "bg-primary-50" : ""
-          }`}
-        >
-          <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-semibold flex-shrink-0">
-            {c.otherUser.name.charAt(0)}
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between">
-              <span className="font-medium text-sm text-gray-900 truncate">{c.otherUser.name}</span>
-              <span className="text-xs text-gray-400 flex-shrink-0 ml-2">
-                {formatDistanceToNow(new Date(c.updatedAt), { locale: th, addSuffix: true })}
-              </span>
+      {convs.map((c) => {
+        const hasUnread = c.unreadCount > 0
+        return (
+          <button
+            key={c.id}
+            onClick={() => onSelect(c.id, c.otherUser)}
+            className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left ${
+              activeId === c.id ? "bg-primary-50" : ""
+            }`}
+          >
+            <div className="w-10 h-10 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-semibold flex-shrink-0">
+              {c.otherUser.name.charAt(0)}
             </div>
-            {c.lastMessage && (
-              <p className="text-xs text-gray-500 truncate mt-0.5">{c.lastMessage.content}</p>
-            )}
-          </div>
-        </button>
-      ))}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center justify-between">
+                <span className={`text-sm truncate ${hasUnread ? "font-bold text-gray-900" : "font-medium text-gray-900"}`}>
+                  {c.otherUser.name}
+                </span>
+                <span className="text-xs text-gray-400 flex-shrink-0 ml-2">
+                  {formatDistanceToNow(new Date(c.updatedAt), { locale: th, addSuffix: true })}
+                </span>
+              </div>
+              <div className="flex items-center justify-between mt-0.5">
+                {c.lastMessage && (
+                  <p className={`text-xs truncate ${hasUnread ? "text-gray-800 font-medium" : "text-gray-500"}`}>
+                    {c.lastMessage.content}
+                  </p>
+                )}
+                {hasUnread && (
+                  <span className="ml-2 flex-shrink-0 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
+                    {c.unreadCount > 9 ? "9+" : c.unreadCount}
+                  </span>
+                )}
+              </div>
+            </div>
+          </button>
+        )
+      })}
     </div>
   )
 }

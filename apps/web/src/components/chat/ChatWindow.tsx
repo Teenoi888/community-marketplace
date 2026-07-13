@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import { Send, Paperclip, Circle, Check, CheckCheck } from "lucide-react"
 import { toast } from "sonner"
+import { useQueryClient } from "@tanstack/react-query"
 import { useChat } from "@/hooks/useChat"
 import { api } from "@/lib/api"
 import type { Message } from "@cm/types"
@@ -19,6 +20,7 @@ export function ChatWindow({ conversationId, currentUserId, token, otherUser }: 
   const [uploading, setUploading] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const queryClient = useQueryClient()
   const { otherOnline, messages, setMessages, sendMessage, markRead } = useChat({
     conversationId,
     token,
@@ -38,11 +40,15 @@ export function ChatWindow({ conversationId, currentUserId, token, otherUser }: 
 
   // The window being open/focused counts as "read" — mark on open and every
   // time a new message arrives while it's still the active conversation.
+  // Also invalidate the sidebar's conversation list so its unread badge for
+  // this conversation clears immediately instead of waiting for its
+  // 10s poll.
   useEffect(() => {
     if (messages.some(m => m.senderId !== currentUserId && !m.readAt)) {
       markRead()
+      queryClient.invalidateQueries({ queryKey: ["conversations"] })
     }
-  }, [conversationId, messages, currentUserId, markRead])
+  }, [conversationId, messages, currentUserId, markRead, queryClient])
 
   function handleSend() {
     const text = input.trim()

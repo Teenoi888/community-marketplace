@@ -159,7 +159,7 @@ export async function chatRoutes(app: FastifyInstance) {
       orderBy: [desc(conversations.updatedAt)],
     })
 
-    // Attach last message for each
+    // Attach last message + per-conversation unread count for each
     const withLastMsg = await Promise.all(convs.map(async (c) => {
       const lastMsg = await db.query.messages.findFirst({
         where: eq(messages.conversationId, c.id),
@@ -167,7 +167,12 @@ export async function chatRoutes(app: FastifyInstance) {
       })
       const otherId = c.buyerId === userId ? c.sellerId : c.buyerId
       const other = await db.query.users.findFirst({ where: eq(users.id, otherId) })
-      return { ...c, lastMessage: lastMsg, otherUser: other ? { ...other, passwordHash: undefined } : other }
+      const [{ total: unreadCount }] = await db.select({ total: count() }).from(messages).where(and(
+        eq(messages.conversationId, c.id),
+        ne(messages.senderId, userId),
+        isNull(messages.readAt),
+      ))
+      return { ...c, lastMessage: lastMsg, unreadCount, otherUser: other ? { ...other, passwordHash: undefined } : other }
     }))
 
     return { success: true, data: withLastMsg }
