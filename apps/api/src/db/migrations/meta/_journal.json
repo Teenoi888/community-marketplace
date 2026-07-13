@@ -69,7 +69,7 @@
       "idx": 9,
       "version": "7",
       "when": 1783932600662,
-      "tag": "0009_admin_activity_logs",
+      "tag": "0010_admin_activity_logs",
       "breakpoints": true
     }
   ]
