@@ -50,7 +50,7 @@ export default function LoginPage() {
       localStorage.setItem("access_token", res.data.accessToken)
       setUser(res.data.user)
       toast.success("เข้าสู่ระบบสำเร็จ")
-      router.push("/")
+      router.push(res.data.user.role === "admin" ? "/admin" : "/")
     } catch {
       toast.error("เบอร์โทรหรือรหัสผ่านไม่ถูกต้อง")
     }
@@ -87,7 +87,7 @@ export default function LoginPage() {
       localStorage.setItem("access_token", res.data.accessToken)
       setUser(res.data.user)
       toast.success("เข้าสู่ระบบสำเร็จ")
-      router.push("/")
+      router.push(res.data.user.role === "admin" ? "/admin" : "/")
     } catch {
       toast.error("รหัส OTP ไม่ถูกต้องหรือหมดอายุ")
     } finally {
