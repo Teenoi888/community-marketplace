@@ -6,6 +6,7 @@ export interface User {
   email?: string
   lineUid?: string
   avatarUrl?: string
+  role?: 'user' | 'admin'
   createdAt: Date
 }
 

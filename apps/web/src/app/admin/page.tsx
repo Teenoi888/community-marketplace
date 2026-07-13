@@ -1,9 +1,10 @@
 "use client"
 import { useEffect, useState } from "react"
-import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { Users, Package, Store, ShoppingBag, Tag, ChevronRight, ShieldCheck } from "lucide-react"
+import { Users, Package, Store, ShoppingBag, ShieldCheck, ChevronRight, Tag } from "lucide-react"
+import Link from "next/link"
 import { MainNav } from "@/components/layout/MainNav"
+import { AdminLayout } from "@/components/admin/AdminLayout"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
 
@@ -86,10 +87,10 @@ export default function AdminPage() {
   }
 
   const statCards = [
-    { label: "ผู้ใช้ทั้งหมด",   value: stats?.totalUsers,       icon: Users,       color: "text-blue-500",   bg: "bg-blue-50" },
-    { label: "สินค้าทั้งหมด",   value: stats?.totalProducts,    icon: Package,     color: "text-green-500",  bg: "bg-green-50" },
-    { label: "ชุมชนทั้งหมด",   value: stats?.totalCommunities, icon: Store,       color: "text-purple-500", bg: "bg-purple-50" },
-    { label: "คำสั่งซื้อทั้งหมด", value: stats?.totalOrders,   icon: ShoppingBag, color: "text-orange-500", bg: "bg-orange-50" },
+    { label: "ผู้ใช้ทั้งหมด",     value: stats?.totalUsers,       icon: Users,       color: "text-blue-600",   bg: "bg-blue-50" },
+    { label: "สินค้าทั้งหมด",     value: stats?.totalProducts,    icon: Package,     color: "text-green-600",  bg: "bg-green-50" },
+    { label: "ชุมชนทั้งหมด",     value: stats?.totalCommunities, icon: Store,       color: "text-purple-600", bg: "bg-purple-50" },
+    { label: "คำสั่งซื้อทั้งหมด", value: stats?.totalOrders,      icon: ShoppingBag, color: "text-orange-600", bg: "bg-orange-50" },
   ]
 
   const menuItems = [
@@ -98,47 +99,39 @@ export default function AdminPage() {
   ]
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <MainNav />
-      <div className="max-w-5xl mx-auto px-4 py-8">
-        <div className="flex items-center gap-3 mb-8">
-          <ShieldCheck className="w-7 h-7 text-primary-600" />
-          <h1 className="text-2xl font-bold text-gray-900">Admin Panel</h1>
-        </div>
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
-          {statCards.map(({ label, value, icon: Icon, color, bg }) => (
-            <div key={label} className="card flex items-center gap-3">
-              <div className={`w-10 h-10 ${bg} rounded-xl flex items-center justify-center flex-shrink-0`}>
-                <Icon className={`w-5 h-5 ${color}`} />
-              </div>
-              <div>
-                <p className="text-2xl font-bold text-gray-900">{value?.toLocaleString() ?? "—"}</p>
-                <p className="text-xs text-gray-500">{label}</p>
-              </div>
+    <AdminLayout title="แดชบอร์ด">
+      {/* Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {statCards.map(({ label, value, icon: Icon, color, bg }) => (
+          <div key={label} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex items-center gap-3">
+            <div className={`w-11 h-11 ${bg} rounded-xl flex items-center justify-center flex-shrink-0`}>
+              <Icon className={`w-5.5 h-5.5 ${color}`} />
             </div>
-          ))}
-        </div>
-
-        {/* Menu */}
-        <h2 className="text-lg font-semibold text-gray-700 mb-3">ตั้งค่าระบบ</h2>
-        <div className="space-y-3">
-          {menuItems.map(({ href, label, icon: Icon, desc }) => (
-            <Link key={href} href={href}
-              className="card flex items-center gap-4 hover:shadow-md transition-shadow group">
-              <div className="w-10 h-10 bg-primary-50 rounded-xl flex items-center justify-center flex-shrink-0">
-                <Icon className="w-5 h-5 text-primary-600" />
-              </div>
-              <div className="flex-1">
-                <p className="font-semibold text-gray-900">{label}</p>
-                <p className="text-sm text-gray-500">{desc}</p>
-              </div>
-              <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-primary-500 transition-colors" />
-            </Link>
-          ))}
-        </div>
+            <div className="min-w-0">
+              <p className="text-2xl font-bold text-gray-900 leading-tight">{value?.toLocaleString() ?? "—"}</p>
+              <p className="text-xs text-gray-500 truncate">{label}</p>
+            </div>
+          </div>
+        ))}
       </div>
-    </main>
+
+      {/* Menu */}
+      <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">ตั้งค่าระบบ</h2>
+      <div className="grid sm:grid-cols-2 gap-3">
+        {menuItems.map(({ href, label, icon: Icon, desc }) => (
+          <Link key={href} href={href}
+            className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex items-center gap-4 hover:shadow-md hover:border-primary-200 transition-all group">
+            <div className="w-11 h-11 bg-primary-50 rounded-xl flex items-center justify-center flex-shrink-0">
+              <Icon className="w-5.5 h-5.5 text-primary-600" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-semibold text-gray-900">{label}</p>
+              <p className="text-sm text-gray-500">{desc}</p>
+            </div>
+            <ChevronRight className="w-5 h-5 text-gray-300 group-hover:text-primary-500 transition-colors flex-shrink-0" />
+          </Link>
+        ))}
+      </div>
+    </AdminLayout>
   )
 }
