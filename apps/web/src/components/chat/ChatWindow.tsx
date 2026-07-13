@@ -40,13 +40,14 @@ export function ChatWindow({ conversationId, currentUserId, token, otherUser }: 
 
   // The window being open/focused counts as "read" — mark on open and every
   // time a new message arrives while it's still the active conversation.
-  // Also invalidate the sidebar's conversation list so its unread badge for
-  // this conversation clears immediately instead of waiting for its
-  // 10s poll.
+  // Also invalidate the sidebar's conversation list, and tell the nav
+  // badge (a separate WS connection that has no other way to hear about
+  // this) so both clear immediately instead of waiting for their own polls.
   useEffect(() => {
     if (messages.some(m => m.senderId !== currentUserId && !m.readAt)) {
       markRead()
       queryClient.invalidateQueries({ queryKey: ["conversations"] })
+      window.dispatchEvent(new Event("chat:read"))
     }
   }, [conversationId, messages, currentUserId, markRead, queryClient])
 
