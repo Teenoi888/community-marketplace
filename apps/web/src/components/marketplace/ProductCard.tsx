@@ -62,7 +62,7 @@ export function ProductCard({ product }: ProductCardProps) {
 
         {/* Info */}
         <div className="p-3">
-          <h3 className="text-sm font-medium text-gray-900 line-clamp-2 mb-1 group-hover:text-primary-600 transition-colors">
+          <h3 className="text-sm font-medium text-gray-900 line-clamp-2 mb-1 group-hover:text-primary-600 transition-colors h-10">
             {product.name}
           </h3>
 
