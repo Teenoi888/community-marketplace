@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useState } from "react"
-import { Package, ShoppingBag, TrendingUp, MessageSquare, Plus, AlertTriangle, Clock, RefreshCw } from "lucide-react"
+import { Package, ShoppingBag, TrendingUp, MessageSquare, Plus, AlertTriangle, Clock, RefreshCw, ChevronLeft } from "lucide-react"
 import Link from "next/link"
 import { api } from "@/lib/api"
 
@@ -97,6 +97,9 @@ export default function SellerDashboard() {
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div>
+            <Link href="/" className="inline-flex items-center gap-1 text-sm text-gray-400 hover:text-gray-600 mb-2 transition-colors">
+              <ChevronLeft className="w-4 h-4" /> กลับหน้าแรก
+            </Link>
             <h1 className="text-2xl font-bold text-gray-900">หน้าร้านของฉัน</h1>
             <div className="flex items-center gap-2 mt-1">
               <p className="text-gray-500 text-sm">{stats?.shopName ?? "จัดการสินค้าและออเดอร์"}</p>

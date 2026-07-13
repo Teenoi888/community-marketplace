@@ -32,18 +32,14 @@ export default async function CommunityPage({ params }: Props) {
   return (
     <main className="min-h-screen bg-gray-50">
 
-      {/* Banner */}
+      {/* Banner + Back button */}
       <div className="relative h-44 md:h-56 bg-gradient-to-br from-primary-400 to-primary-700">
         {community.bannerUrl && (
           <Image src={community.bannerUrl} alt="" fill className="object-cover" />
         )}
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
-      </div>
-
-      {/* Back button */}
-      <div className="bg-white border-b border-gray-100 px-4 sm:px-6 lg:px-8 py-2">
-        <div className="max-w-7xl mx-auto">
-          <Link href="/" className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-900 transition-colors py-1">
+        <div className="absolute top-3 left-4 sm:left-6 lg:left-8 z-10">
+          <Link href="/" className="inline-flex items-center gap-1 text-sm text-white/90 hover:text-white transition-colors bg-black/20 hover:bg-black/30 rounded-full px-3 py-1.5 backdrop-blur-sm">
             <ChevronLeft className="w-4 h-4" />
             กลับหน้าแรก
           </Link>
@@ -100,7 +96,7 @@ export default async function CommunityPage({ params }: Props) {
         </div>
 
         {community.description && (
-          <p className="text-gray-600 mb-6 leading-relaxed">{community.description}</p>
+          <p className="text-gray-700 text-base font-medium mb-6 leading-relaxed">{community.description}</p>
         )}
 
         <h2 className="text-xl font-bold text-gray-800 mb-4">สินค้าในชุมชน</h2>

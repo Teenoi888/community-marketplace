@@ -3,7 +3,7 @@ import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
-import { ShoppingCart, ArrowLeft, Store, MapPin, Package, MessageSquare } from "lucide-react"
+import { ShoppingCart, ArrowLeft, Store, MapPin, Package, MessageSquare, Star } from "lucide-react"
 import { api } from "@/lib/api"
 import { useCartStore } from "@/lib/store/cart"
 import { useAuthStore } from "@/lib/store/auth"
@@ -32,6 +32,41 @@ interface Product {
   }
 }
 
+interface Review {
+  id: string
+  rating: number
+  comment?: string
+  created_at: string
+  user_name: string
+  avatar_url?: string
+}
+
+function StarRow({ rating, size = 16, interactive = false, onChange }: {
+  rating: number
+  size?: number
+  interactive?: boolean
+  onChange?: (r: number) => void
+}) {
+  const [hover, setHover] = useState(0)
+  return (
+    <div className="flex gap-0.5">
+      {[1, 2, 3, 4, 5].map(s => (
+        <Star
+          key={s}
+          width={size} height={size}
+          className={`transition-colors ${interactive ? "cursor-pointer" : ""}
+            ${s <= (interactive ? (hover || rating) : rating)
+              ? "fill-yellow-400 text-yellow-400"
+              : "fill-gray-200 text-gray-200"}`}
+          onMouseEnter={() => interactive && setHover(s)}
+          onMouseLeave={() => interactive && setHover(0)}
+          onClick={() => interactive && onChange?.(s)}
+        />
+      ))}
+    </div>
+  )
+}
+
 export default function ProductDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
@@ -44,12 +79,63 @@ export default function ProductDetailPage() {
   const { addItem } = useCartStore()
   const user = useAuthStore((s) => s.user)
 
+  // Reviews
+  const [reviews, setReviews] = useState<Review[]>([])
+  const [avgRating, setAvgRating] = useState(0)
+  const [totalReviews, setTotalReviews] = useState(0)
+  const [eligibility, setEligibility] = useState<{ eligible: boolean; alreadyReviewed: boolean; orderId: string | null } | null>(null)
+  const [reviewRating, setReviewRating] = useState(5)
+  const [reviewComment, setReviewComment] = useState("")
+  const [submittingReview, setSubmittingReview] = useState(false)
+
   useEffect(() => {
     api.get(`/products/${id}`)
       .then(r => setProduct(r.data.data))
       .catch(() => router.push("/"))
       .finally(() => setLoading(false))
   }, [id])
+
+  useEffect(() => {
+    if (!id) return
+    api.get(`/reviews?productId=${id}`)
+      .then(r => {
+        setReviews(r.data.data || [])
+        setAvgRating(r.data.avgRating || 0)
+        setTotalReviews(r.data.total || 0)
+      })
+      .catch(() => {})
+  }, [id])
+
+  useEffect(() => {
+    if (!id || !user) return
+    api.get(`/reviews/eligibility?productId=${id}`)
+      .then(r => setEligibility(r.data))
+      .catch(() => {})
+  }, [id, user])
+
+  async function submitReview() {
+    if (!eligibility?.orderId || !reviewRating) return
+    setSubmittingReview(true)
+    try {
+      await api.post("/reviews", {
+        productId: id,
+        orderId: eligibility.orderId,
+        rating: reviewRating,
+        comment: reviewComment.trim() || undefined,
+      })
+      toast.success("รีวิวสำเร็จ! ขอบคุณ")
+      setEligibility({ ...eligibility, eligible: false, alreadyReviewed: true })
+      // Refresh reviews
+      const r = await api.get(`/reviews?productId=${id}`)
+      setReviews(r.data.data || [])
+      setAvgRating(r.data.avgRating || 0)
+      setTotalReviews(r.data.total || 0)
+    } catch (e: any) {
+      toast.error(e?.response?.data?.error || "เกิดข้อผิดพลาด")
+    } finally {
+      setSubmittingReview(false)
+    }
+  }
 
   function addToCart() {
     if (!product) return
@@ -154,6 +240,14 @@ export default function ProductDetailPage() {
             <div>
               <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">{product.category}</span>
               <h1 className="text-2xl font-bold text-gray-900 mt-2">{product.name}</h1>
+              {/* Avg Rating */}
+              {totalReviews > 0 && (
+                <div className="flex items-center gap-2 mt-1">
+                  <StarRow rating={Math.round(avgRating)} size={14} />
+                  <span className="text-sm font-semibold text-yellow-500">{avgRating.toFixed(1)}</span>
+                  <span className="text-xs text-gray-400">({totalReviews} รีวิว)</span>
+                </div>
+              )}
               <p className="text-3xl font-bold text-primary-600 mt-1">฿{price.toLocaleString()}</p>
             </div>
 
@@ -218,6 +312,90 @@ export default function ProductDetailPage() {
               {product.stock === 0 ? "สินค้าหมด" : "เพิ่มลงตะกร้า"}
             </button>
           </div>
+        </div>
+
+        {/* ── Reviews Section ── */}
+        <div className="mt-10">
+          <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <Star className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+            รีวิวสินค้า
+            {totalReviews > 0 && <span className="text-sm font-normal text-gray-400">({totalReviews} รีวิว)</span>}
+          </h2>
+
+          {/* Summary bar */}
+          {totalReviews > 0 && (
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4 flex items-center gap-6">
+              <div className="text-center">
+                <p className="text-4xl font-bold text-gray-900">{avgRating.toFixed(1)}</p>
+                <StarRow rating={Math.round(avgRating)} size={18} />
+                <p className="text-xs text-gray-400 mt-1">{totalReviews} รีวิว</p>
+              </div>
+            </div>
+          )}
+
+          {/* Review form — only for eligible buyers */}
+          {user && eligibility?.eligible && (
+            <div className="bg-white rounded-2xl p-5 shadow-sm border border-primary-100 mb-4">
+              <h3 className="font-semibold text-gray-800 mb-3">เขียนรีวิวสินค้า</h3>
+              <div className="mb-3">
+                <p className="text-sm text-gray-500 mb-1.5">คะแนน</p>
+                <StarRow rating={reviewRating} size={28} interactive onChange={setReviewRating} />
+              </div>
+              <textarea
+                value={reviewComment}
+                onChange={e => setReviewComment(e.target.value)}
+                placeholder="เขียนรีวิวสินค้า (ไม่บังคับ)..."
+                rows={3}
+                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary-300"
+              />
+              <button
+                onClick={submitReview}
+                disabled={submittingReview || reviewRating === 0}
+                className="mt-3 btn-primary px-6 py-2.5 text-sm disabled:opacity-50"
+              >
+                {submittingReview ? "กำลังส่ง..." : "ส่งรีวิว"}
+              </button>
+            </div>
+          )}
+
+          {user && eligibility?.alreadyReviewed && (
+            <div className="bg-green-50 border border-green-100 rounded-2xl p-4 mb-4 text-sm text-green-700 font-medium">
+              ✅ คุณได้รีวิวสินค้านี้แล้ว
+            </div>
+          )}
+
+          {/* Review list */}
+          {reviews.length === 0 ? (
+            <div className="text-center py-10 text-gray-400 bg-white rounded-2xl border border-gray-100">
+              <Star className="w-10 h-10 mx-auto mb-2 opacity-20" />
+              <p>ยังไม่มีรีวิว</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {reviews.map(review => (
+                <div key={review.id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+                  <div className="flex items-start justify-between gap-3 mb-2">
+                    <div className="flex items-center gap-2">
+                      {review.avatar_url
+                        ? <Image src={review.avatar_url} alt="" width={32} height={32} className="rounded-full" />
+                        : <div className="w-8 h-8 rounded-full bg-primary-100 flex items-center justify-center text-primary-700 font-bold text-sm">
+                            {review.user_name.charAt(0)}
+                          </div>
+                      }
+                      <span className="font-medium text-gray-800 text-sm">{review.user_name}</span>
+                    </div>
+                    <span className="text-xs text-gray-400 flex-shrink-0">
+                      {new Date(review.created_at).toLocaleDateString("th-TH")}
+                    </span>
+                  </div>
+                  <StarRow rating={review.rating} size={14} />
+                  {review.comment && (
+                    <p className="mt-2 text-sm text-gray-700 leading-relaxed">{review.comment}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </main>
