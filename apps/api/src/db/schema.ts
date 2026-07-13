@@ -169,6 +169,16 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 })
 
+export const adminActivityLogs = pgTable("admin_activity_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  adminId: uuid("admin_id").references(() => users.id, { onDelete: "set null" }),
+  action: text("action").notNull(),
+  targetType: text("target_type").notNull(),
+  targetId: text("target_id"),
+  details: jsonb("details"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+})
+
 export const userAddresses = pgTable("user_addresses", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
@@ -197,6 +207,10 @@ export const userAddressesRelations = relations(userAddresses, ({ one }) => ({
 export const notificationsRelations = relations(notifications, ({ one }) => ({
   user: one(users, { fields: [notifications.userId], references: [users.id] }),
   order: one(orders, { fields: [notifications.orderId], references: [orders.id] }),
+}))
+
+export const adminActivityLogsRelations = relations(adminActivityLogs, ({ one }) => ({
+  admin: one(users, { fields: [adminActivityLogs.adminId], references: [users.id] }),
 }))
 
 export const communitiesRelations = relations(communities, ({ many }) => ({

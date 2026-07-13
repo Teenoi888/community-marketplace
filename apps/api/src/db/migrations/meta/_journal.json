@@ -64,6 +64,13 @@
       "when": 1783884914592,
       "tag": "0008_message_read_receipts",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1783932600662,
+      "tag": "0009_admin_activity_logs",
+      "breakpoints": true
     }
   ]
 }
