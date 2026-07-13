@@ -64,59 +64,58 @@ export default function AdminActivityLogsPage() {
 
   return (
     <AdminLayout title="Log กิจกรรม">
-      <div className="max-w-4xl">
-        {loading ? (
-          <div className="space-y-2">
-            {[1, 2, 3, 4].map(i => <div key={i} className="h-14 bg-white rounded-xl animate-pulse" />)}
-          </div>
-        ) : logs.length === 0 ? (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 text-center py-16 text-gray-400">
-            <ScrollText className="w-12 h-12 mx-auto mb-3 opacity-30" />
-            <p>ยังไม่มีกิจกรรมของ admin</p>
-          </div>
-        ) : (
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-gray-50 border-b border-gray-100">
-                <tr>
-                  <th className="text-left px-4 py-3 text-gray-500 font-medium">การกระทำ</th>
-                  <th className="text-left px-4 py-3 text-gray-500 font-medium">โดย</th>
-                  <th className="text-left px-4 py-3 text-gray-500 font-medium hidden sm:table-cell">รายละเอียด</th>
-                  <th className="text-right px-4 py-3 text-gray-500 font-medium">เวลา</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {logs.map(log => {
-                  const Icon = TARGET_ICON[log.targetType] || ShieldCheck
-                  return (
-                    <tr key={log.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-primary-50 flex items-center justify-center flex-shrink-0">
-                            <Icon className="w-3.5 h-3.5 text-primary-600" />
-                          </div>
-                          <span className="font-medium text-gray-800">
-                            {ACTION_LABELS[log.action] || log.action}
-                          </span>
+      <p className="text-sm text-gray-500 mb-6">แสดง {logs.length} รายการล่าสุด</p>
+      {loading ? (
+        <div className="space-y-2">
+          {[1, 2, 3, 4].map(i => <div key={i} className="h-14 bg-white rounded-xl animate-pulse" />)}
+        </div>
+      ) : logs.length === 0 ? (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 text-center py-16 text-gray-400">
+          <ScrollText className="w-10 h-10 mx-auto mb-3 opacity-30" />
+          <p>ยังไม่มีกิจกรรมของ admin</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-100">
+              <tr>
+                <th className="text-left px-5 py-3.5 text-gray-500 font-medium">การกระทำ</th>
+                <th className="text-left px-5 py-3.5 text-gray-500 font-medium">โดย</th>
+                <th className="text-left px-5 py-3.5 text-gray-500 font-medium hidden sm:table-cell">รายละเอียด</th>
+                <th className="text-right px-5 py-3.5 text-gray-500 font-medium">เวลา</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-50">
+              {logs.map(log => {
+                const Icon = TARGET_ICON[log.targetType] || ShieldCheck
+                return (
+                  <tr key={log.id} className="hover:bg-gray-50/60 transition-colors">
+                    <td className="px-5 py-3.5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-7 h-7 rounded-full bg-primary-50 flex items-center justify-center flex-shrink-0">
+                          <Icon className="w-3.5 h-3.5 text-primary-600" />
                         </div>
-                      </td>
-                      <td className="px-4 py-3 text-gray-600">
-                        {log.admin?.name || <span className="text-gray-300">—</span>}
-                      </td>
-                      <td className="px-4 py-3 text-gray-500 hidden sm:table-cell truncate max-w-xs">
-                        {formatDetails(log.action, log.details) || "—"}
-                      </td>
-                      <td className="px-4 py-3 text-right text-xs text-gray-400 whitespace-nowrap">
-                        {timeAgo(log.createdAt)}
-                      </td>
-                    </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                        <span className="font-medium text-gray-800">
+                          {ACTION_LABELS[log.action] || log.action}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3.5 text-gray-600">
+                      {log.admin?.name || <span className="text-gray-300">—</span>}
+                    </td>
+                    <td className="px-5 py-3.5 text-gray-500 hidden sm:table-cell truncate max-w-xs">
+                      {formatDetails(log.action, log.details) || "—"}
+                    </td>
+                    <td className="px-5 py-3.5 text-right text-xs text-gray-400 whitespace-nowrap">
+                      {timeAgo(log.createdAt)}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
     </AdminLayout>
   )
 }

@@ -115,7 +115,9 @@ export function AdminLayout({ title, children }: { title: string; children: Reac
           })}
         </nav>
 
-        <main className="p-4 md:p-8">{children}</main>
+        <main className="p-4 md:p-8">
+          <div className="max-w-6xl mx-auto">{children}</div>
+        </main>
       </div>
     </div>
   )

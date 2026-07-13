@@ -1,7 +1,7 @@
 "use client"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Users, Package, Store, ShoppingBag, ShieldCheck, ChevronRight, Tag } from "lucide-react"
+import { Users, Package, Store, ShoppingBag, ShieldCheck, ChevronRight, Tag, ScrollText } from "lucide-react"
 import Link from "next/link"
 import { MainNav } from "@/components/layout/MainNav"
 import { AdminLayout } from "@/components/admin/AdminLayout"
@@ -96,6 +96,7 @@ export default function AdminPage() {
   const menuItems = [
     { href: "/admin/categories", label: "จัดการหมวดหมู่สินค้า", icon: Tag, desc: "เพิ่ม ลบ แก้ไขหมวดหมู่ที่แสดงในหน้าแรก" },
     { href: "/admin/users", label: "จัดการผู้ใช้", icon: Users, desc: "ดูรายชื่อผู้ใช้ เปลี่ยน role admin" },
+    { href: "/admin/activity-logs", label: "Log กิจกรรม", icon: ScrollText, desc: "ตรวจสอบว่า admin คนไหนทำอะไรไปบ้าง" },
   ]
 
   return (
@@ -117,7 +118,7 @@ export default function AdminPage() {
 
       {/* Menu */}
       <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">ตั้งค่าระบบ</h2>
-      <div className="grid sm:grid-cols-2 gap-3">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {menuItems.map(({ href, label, icon: Icon, desc }) => (
           <Link key={href} href={href}
             className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 flex items-center gap-4 hover:shadow-md hover:border-primary-200 transition-all group">
