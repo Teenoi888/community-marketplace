@@ -6,10 +6,22 @@ import jwt from "@fastify/jwt"
 import rateLimit from "@fastify/rate-limit"
 import websocket from "@fastify/websocket"
 import multipart from "@fastify/multipart"
+<<<<<<< HEAD
 import postgres from "postgres"
 import path from "path"
 import { fileURLToPath } from "url"
 import { readdir, readFile } from "fs/promises"
+=======
+import { migrate } from "drizzle-orm/postgres-js/migrator"
+import { drizzle } from "drizzle-orm/postgres-js"
+import postgres from "postgres"
+import path from "path"
+import { fileURLToPath } from "url"
+import { db } from "./db/index.js"
+import { users, communities, communityMembers, shops, products } from "./db/schema.js"
+import { count } from "drizzle-orm"
+import bcrypt from "bcryptjs"
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
 import { authRoutes } from "./routes/auth/index.js"
 import { communityRoutes } from "./routes/communities/index.js"
 import { productRoutes } from "./routes/products/index.js"
@@ -18,10 +30,16 @@ import { paymentRoutes } from "./routes/payments/index.js"
 import { chatRoutes } from "./routes/chat/index.js"
 import { uploadRoutes } from "./routes/upload/index.js"
 import { lineRoutes } from "./routes/line/index.js"
+<<<<<<< HEAD
+=======
+import { googleRoutes } from "./routes/google/index.js"
+import { facebookRoutes } from "./routes/facebook/index.js"
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
 import { trackingRoutes } from "./routes/tracking/index.js"
 import { addressRoutes } from "./routes/addresses/index.js"
 import { categoryRoutes } from "./routes/categories/index.js"
 import { adminRoutes } from "./routes/admin/index.js"
+<<<<<<< HEAD
 import { db } from "./db/index.js"
 import { users, communities, communityMembers, shops, products } from "./db/schema.js"
 import { count } from "drizzle-orm"
@@ -48,6 +66,18 @@ try {
 } finally {
   await migrationClient.end()
 }
+=======
+import { notificationRoutes } from "./routes/notifications/index.js"
+
+// Auto-migrate on startup
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const migrationClient = postgres(process.env.DATABASE_URL!, { max: 1 })
+const migrationDb = drizzle(migrationClient)
+console.log("⏳ Running migrations...")
+await migrate(migrationDb, { migrationsFolder: path.join(__dirname, "db/migrations") })
+await migrationClient.end()
+console.log("✅ Migrations done")
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
 
 const app = Fastify({
   logger: { level: process.env.NODE_ENV === "production" ? "warn" : "info" },
@@ -58,9 +88,15 @@ const app = Fastify({
 await app.register(cors, {
   origin: [
     process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000",
+<<<<<<< HEAD
     "https://chumchon.market",
     "https://www.chumchon.market",
     "https://liff.line.me",
+=======
+    "https://liff.line.me",
+    "https://chumchon.market",
+    "https://www.chumchon.market",
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
   ],
   credentials: true,
 })
@@ -82,10 +118,19 @@ await app.register(paymentRoutes,   { prefix: "/api/payments" })
 await app.register(chatRoutes,      { prefix: "/api/chat" })
 await app.register(uploadRoutes,    { prefix: "/api/upload" })
 await app.register(lineRoutes,      { prefix: "/api/line" })
+<<<<<<< HEAD
+=======
+await app.register(googleRoutes,    { prefix: "/api/google" })
+await app.register(facebookRoutes,  { prefix: "/api/facebook" })
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
 await app.register(trackingRoutes,  { prefix: "/api/tracking" })
 await app.register(addressRoutes,   { prefix: "/api/addresses" })
 await app.register(categoryRoutes,  { prefix: "/api/categories" })
 await app.register(adminRoutes,     { prefix: "/api/admin" })
+<<<<<<< HEAD
+=======
+await app.register(notificationRoutes, { prefix: "/api/notifications" })
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
 
 // ── Seed endpoint (no auth required — protected by ADMIN_SECRET only) ──────
 app.post("/api/admin/seed", async (request, reply) => {

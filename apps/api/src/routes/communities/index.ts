@@ -67,7 +67,22 @@ export async function communityRoutes(app: FastifyInstance) {
         )).flat()
       : []
 
+<<<<<<< HEAD
     return { success: true, data: { community, products: productList, shopCount: communityShops.length } }
+=======
+    return {
+      success: true,
+      data: {
+        community,
+        products: productList,
+        shopCount: communityShops.length,
+        // Only unambiguous to offer a single "chat with seller" button when
+        // there's exactly one shop — a community can have several independent
+        // sellers, so there's no single "community owner" to chat with otherwise.
+        shop: communityShops.length === 1 ? communityShops[0] : null,
+      },
+    }
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
   })
 
   // Get MY community (the one I'm admin of)

@@ -1,9 +1,16 @@
+<<<<<<< HEAD
+=======
+import { Suspense } from "react"
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
 import { MainNav } from "@/components/layout/MainNav"
 import { HeroSection } from "@/components/marketplace/HeroSection"
 import { CommunityGrid } from "@/components/marketplace/CommunityGrid"
 import { ProductFeed } from "@/components/marketplace/ProductFeed"
 import { CategoryBar } from "@/components/marketplace/CategoryBar"
+<<<<<<< HEAD
 import { Suspense } from "react"
+=======
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
 
 export default function HomePage() {
   return (
@@ -22,7 +29,13 @@ export default function HomePage() {
 
         <section>
           <h2 className="text-xl font-bold text-gray-800 mb-4">สินค้าทั้งหมด</h2>
+<<<<<<< HEAD
           <ProductFeed />
+=======
+          <Suspense fallback={<div className="text-gray-400">กำลังโหลด...</div>}>
+            <ProductFeed />
+          </Suspense>
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
         </section>
       </div>
     </main>

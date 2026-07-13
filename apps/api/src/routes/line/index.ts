@@ -17,7 +17,11 @@ export async function lineRoutes(app: FastifyInstance) {
     const params = new URLSearchParams({
       response_type: "code",
       client_id: process.env.LINE_CHANNEL_ID!,
+<<<<<<< HEAD
       redirect_uri: `${process.env.NEXT_PUBLIC_API_URL}/api/line/callback`,
+=======
+      redirect_uri: `${process.env.NEXT_PUBLIC_API_URL}/line/callback`,
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
       state: "random_state_" + Date.now(),
       scope: "profile openid email",
     })
@@ -33,7 +37,11 @@ export async function lineRoutes(app: FastifyInstance) {
       new URLSearchParams({
         grant_type: "authorization_code",
         code,
+<<<<<<< HEAD
         redirect_uri: `${process.env.NEXT_PUBLIC_API_URL}/api/line/callback`,
+=======
+        redirect_uri: `${process.env.NEXT_PUBLIC_API_URL}/line/callback`,
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
         client_id: process.env.LINE_CHANNEL_ID!,
         client_secret: process.env.LINE_CHANNEL_SECRET!,
       }),
@@ -67,7 +75,11 @@ export async function lineRoutes(app: FastifyInstance) {
 
     // Redirect back to frontend with token
     return reply.redirect(
+<<<<<<< HEAD
       `${process.env.NEXT_PUBLIC_APP_URL}/auth/line-callback?token=${accessToken}`
+=======
+      `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?token=${accessToken}`
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
     )
   })
 

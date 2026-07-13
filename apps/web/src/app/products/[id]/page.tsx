@@ -3,7 +3,11 @@ import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
+<<<<<<< HEAD
 import { ShoppingCart, ArrowLeft, Store, MapPin, Package } from "lucide-react"
+=======
+import { ShoppingCart, ArrowLeft, Store, MapPin, Package, MessageSquare } from "lucide-react"
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
 import { api } from "@/lib/api"
 import { useCartStore } from "@/lib/store/cart"
 import { useAuthStore } from "@/lib/store/auth"
@@ -22,8 +26,15 @@ interface Product {
   shop: {
     id: string
     name: string
+<<<<<<< HEAD
     community: {
       name: string
+=======
+    ownerId: string
+    community: {
+      name: string
+      slug: string
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
       province: string
       district: string
     }
@@ -38,6 +49,10 @@ export default function ProductDetailPage() {
   const [selectedImage, setSelectedImage] = useState(0)
   const [qty, setQty] = useState(1)
   const [addingToCart, setAddingToCart] = useState(false)
+<<<<<<< HEAD
+=======
+  const [startingChat, setStartingChat] = useState(false)
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
   const { addItem } = useCartStore()
   const user = useAuthStore((s) => s.user)
 
@@ -78,6 +93,32 @@ export default function ProductDetailPage() {
     }
   }
 
+<<<<<<< HEAD
+=======
+  async function startChat() {
+    if (!product) return
+    if (!user) {
+      toast.error("กรุณาเข้าสู่ระบบก่อนแชทกับผู้ขาย", {
+        action: { label: "เข้าสู่ระบบ", onClick: () => router.push("/login") },
+      })
+      return
+    }
+    if (product.shop.ownerId === user.id) {
+      toast.error("นี่คือร้านของคุณเอง")
+      return
+    }
+    setStartingChat(true)
+    try {
+      const res = await api.post("/chat/conversations", { sellerId: product.shop.ownerId })
+      router.push(`/chat?c=${res.data.data.id}`)
+    } catch {
+      toast.error("เริ่มแชทไม่สำเร็จ กรุณาลองใหม่")
+    } finally {
+      setStartingChat(false)
+    }
+  }
+
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
   if (loading) {
     return (
       <main className="min-h-screen bg-gray-50">
@@ -139,6 +180,7 @@ export default function ProductDetailPage() {
             )}
 
             {/* Shop info */}
+<<<<<<< HEAD
             <Link href={`/communities/${product.shop.community?.name}`}
               className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 hover:border-primary-200 transition-colors">
               <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center">
@@ -154,6 +196,33 @@ export default function ProductDetailPage() {
                 )}
               </div>
             </Link>
+=======
+            <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100">
+              <Link href={`/communities/${product.shop.community?.slug}`}
+                className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity">
+                <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Store className="w-5 h-5 text-primary-600" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-medium text-gray-900 truncate">{product.shop.name}</p>
+                  {product.shop.community && (
+                    <p className="text-xs text-gray-400 flex items-center gap-1">
+                      <MapPin className="w-3 h-3" />
+                      {product.shop.community.district}, {product.shop.community.province}
+                    </p>
+                  )}
+                </div>
+              </Link>
+              <button
+                onClick={startChat}
+                disabled={startingChat}
+                className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-primary-600 border border-primary-200 rounded-lg hover:bg-primary-50 transition-colors flex-shrink-0 disabled:opacity-50"
+              >
+                <MessageSquare className="w-4 h-4" />
+                แชท
+              </button>
+            </div>
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
 
             {/* Stock */}
             <p className="text-sm text-gray-500">คงเหลือ <span className="font-medium text-gray-700">{product.stock}</span> ชิ้น</p>

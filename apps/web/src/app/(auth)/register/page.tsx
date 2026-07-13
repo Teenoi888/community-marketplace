@@ -1,18 +1,35 @@
 "use client"
+<<<<<<< HEAD
 import Link from "next/link"
 import { useState } from "react"
+=======
+import { useState } from "react"
+import Link from "next/link"
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
+<<<<<<< HEAD
 import { Store, Phone, Lock, User, Eye, EyeOff } from "lucide-react"
+=======
+import { Store, Phone, Lock, User, Eye, EyeOff, Mail } from "lucide-react"
+import { RiLineFill } from "react-icons/ri"
+import { FcGoogle } from "react-icons/fc"
+import { FaFacebook } from "react-icons/fa"
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
 import { api } from "@/lib/api"
 import { useAuthStore } from "@/lib/store/auth"
 import { useRouter } from "next/navigation"
 
 const schema = z.object({
   name: z.string().min(2, "ชื่อต้องมีอย่างน้อย 2 ตัวอักษร"),
+<<<<<<< HEAD
   phone: z.string().min(9, "เบอร์โทรไม่ถูกต้อง").max(10),
+=======
+  phone: z.string().regex(/^\d{10}$/, "เบอร์โทรต้องเป็นตัวเลข 10 หลัก"),
+  email: z.string().email("อีเมลไม่ถูกต้อง").optional().or(z.literal("")),
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
   password: z.string().min(6, "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร"),
   confirmPassword: z.string(),
 }).refine((d) => d.password === d.confirmPassword, {
@@ -25,17 +42,30 @@ type FormData = z.infer<typeof schema>
 export default function RegisterPage() {
   const router = useRouter()
   const setUser = useAuthStore((s) => s.setUser)
+<<<<<<< HEAD
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
+=======
+  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
+    resolver: zodResolver(schema),
+  })
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const { onChange: onPhoneChange, ...phoneField } = register("phone")
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
 
   async function onSubmit(data: FormData) {
     try {
       const res = await api.post("/auth/register", {
         name: data.name,
         phone: data.phone,
+<<<<<<< HEAD
+=======
+        email: data.email || undefined,
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
         password: data.password,
       })
       localStorage.setItem("access_token", res.data.accessToken)
@@ -60,6 +90,7 @@ export default function RegisterPage() {
           <p className="text-gray-500 text-sm mt-1">สมัครสมาชิกเพื่อเริ่มซื้อ-ขายสินค้า</p>
         </div>
 
+<<<<<<< HEAD
         {/* Social Register Buttons */}
         <div className="space-y-3 mb-4">
           {/* LINE */}
@@ -97,6 +128,40 @@ export default function RegisterPage() {
             </svg>
             สมัครด้วย Facebook
           </a>
+=======
+        {/* Social Register */}
+        <div className="mb-4">
+          <div className="grid grid-cols-3 gap-2.5 mb-2.5">
+            <span />
+            <p className="text-center text-lg font-bold text-gray-700">สมัครด้วย</p>
+            <span />
+          </div>
+          <div className="grid grid-cols-3 gap-2.5">
+            <a
+              href={`${process.env.NEXT_PUBLIC_API_URL}/line/auth`}
+              className="flex items-center justify-center gap-1.5 w-full py-3 px-2 bg-white border border-gray-200 shadow-sm hover:bg-gray-50 rounded-xl transition-colors"
+            >
+              <span className="w-6 h-6 rounded-full bg-[#06C755] flex items-center justify-center shrink-0">
+                <RiLineFill className="w-4 h-4 text-white" />
+              </span>
+              <span className="text-sm font-semibold text-gray-800">LINE</span>
+            </a>
+            <a
+              href={`${process.env.NEXT_PUBLIC_API_URL}/google/auth`}
+              className="flex items-center justify-center gap-1.5 w-full py-3 px-2 bg-white border border-gray-200 shadow-sm hover:bg-gray-50 rounded-xl transition-colors"
+            >
+              <FcGoogle className="w-6 h-6 shrink-0" />
+              <span className="text-sm font-semibold text-gray-800">Google</span>
+            </a>
+            <a
+              href={`${process.env.NEXT_PUBLIC_API_URL}/facebook/auth`}
+              className="flex items-center justify-center gap-1.5 w-full py-3 px-2 bg-white border border-gray-200 shadow-sm hover:bg-gray-50 rounded-xl transition-colors"
+            >
+              <FaFacebook className="w-6 h-6 shrink-0 text-[#1877F2]" />
+              <span className="text-sm font-semibold text-gray-800">Facebook</span>
+            </a>
+          </div>
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
         </div>
 
         <div className="relative mb-4">
@@ -123,18 +188,55 @@ export default function RegisterPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">เบอร์โทรศัพท์</label>
             <div className="relative">
               <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+<<<<<<< HEAD
               <input {...register("phone")} type="tel" placeholder="0812345678" className="input pl-9" />
+=======
+              <input
+                {...phoneField}
+                onChange={(e) => {
+                  e.target.value = e.target.value.replace(/\D/g, "").slice(0, 10)
+                  onPhoneChange(e)
+                }}
+                type="tel"
+                inputMode="numeric"
+                placeholder="0812345678"
+                className="input pl-9"
+              />
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
             </div>
             {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone.message}</p>}
           </div>
 
           <div>
+<<<<<<< HEAD
             <label className="block text-sm font-medium text-gray-700 mb-1">รหัสผ่าน</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input {...register("password")} type={showPassword ? "text" : "password"} placeholder="••••••" className="input pl-9 pr-10" />
               <button type="button" onClick={() => setShowPassword(!showPassword)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+=======
+            <label className="block text-sm font-medium text-gray-700 mb-1">อีเมล</label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input {...register("email")} type="email" placeholder="you@example.com" className="input pl-9" />
+            </div>
+            {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email.message}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">รหัสผ่าน</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input {...register("password")} type={showPassword ? "text" : "password"} placeholder="••••••" className="input pl-9 pr-9" />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                tabIndex={-1}
+                aria-label={showPassword ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
+              >
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
@@ -145,10 +247,22 @@ export default function RegisterPage() {
             <label className="block text-sm font-medium text-gray-700 mb-1">ยืนยันรหัสผ่าน</label>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+<<<<<<< HEAD
               <input {...register("confirmPassword")} type={showConfirm ? "text" : "password"} placeholder="••••••" className="input pl-9 pr-10" />
               <button type="button" onClick={() => setShowConfirm(!showConfirm)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
                 {showConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+=======
+              <input {...register("confirmPassword")} type={showConfirmPassword ? "text" : "password"} placeholder="••••••" className="input pl-9 pr-9" />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                tabIndex={-1}
+                aria-label={showConfirmPassword ? "ซ่อนรหัสผ่าน" : "แสดงรหัสผ่าน"}
+              >
+                {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
               </button>
             </div>
             {errors.confirmPassword && <p className="text-red-500 text-xs mt-1">{errors.confirmPassword.message}</p>}

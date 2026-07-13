@@ -4,7 +4,20 @@ import { db } from "../../db/index.js"
 import { orders, orderItems, products, shops } from "../../db/schema.js"
 import { eq, and, gte, lte, sql } from "drizzle-orm"
 import { requireAuth } from "../../middleware/auth.js"
+<<<<<<< HEAD
 import { sendLinePush } from "../line/index.js"
+=======
+import { notifyOrderStatus } from "../../lib/notify.js"
+
+const STATUS_LABELS: Record<string, string> = {
+  pending_payment: "รอชำระเงิน",
+  paid: "ชำระแล้ว",
+  preparing: "กำลังเตรียมสินค้า",
+  shipped: "จัดส่งแล้ว",
+  delivered: "ส่งถึงแล้ว",
+  cancelled: "ยกเลิก",
+}
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
 
 const createOrderSchema = z.object({
   shopId: z.string().uuid(),
@@ -71,6 +84,7 @@ export async function orderRoutes(app: FastifyInstance) {
       }))
     )
 
+<<<<<<< HEAD
     // Notify seller via LINE (fire-and-forget)
     try {
       const shop = await db.query.shops.findFirst({
@@ -94,6 +108,8 @@ export async function orderRoutes(app: FastifyInstance) {
       app.log.warn("LINE notify failed (non-critical):", e)
     }
 
+=======
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
     return reply.code(201).send({ success: true, data: order })
   })
 
@@ -192,6 +208,7 @@ export async function orderRoutes(app: FastifyInstance) {
   // Update order status (seller)
   app.patch("/:id/status", { preHandler: [requireAuth] }, async (request) => {
     const { id } = request.params as { id: string }
+<<<<<<< HEAD
     const { status, cancelReason } = request.body as { status: string; cancelReason?: string }
     const [updated] = await db.update(orders)
       .set({
@@ -219,6 +236,21 @@ export async function orderRoutes(app: FastifyInstance) {
         app.log.warn("LINE notify buyer failed:", e)
       }
     }
+=======
+    const { status } = request.body as { status: string }
+    const [updated] = await db.update(orders)
+      .set({ status: status as any, updatedAt: new Date() })
+      .where(eq(orders.id, id))
+      .returning()
+
+    const label = STATUS_LABELS[status] || status
+    await notifyOrderStatus({
+      userId: updated.buyerId,
+      orderId: updated.id,
+      title: `ออเดอร์ #${updated.id.slice(0, 8).toUpperCase()} — ${label}`,
+      body: `สถานะออเดอร์ของคุณเปลี่ยนเป็น "${label}"`,
+    })
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
 
     return { success: true, data: updated }
   })
@@ -231,6 +263,17 @@ export async function orderRoutes(app: FastifyInstance) {
       .set({ trackingNumber, logisticsProvider, status: "shipped" as any, updatedAt: new Date() })
       .where(eq(orders.id, id))
       .returning()
+<<<<<<< HEAD
+=======
+
+    await notifyOrderStatus({
+      userId: updated.buyerId,
+      orderId: updated.id,
+      title: `ออเดอร์ #${updated.id.slice(0, 8).toUpperCase()} — จัดส่งแล้ว`,
+      body: `พัสดุถูกส่งผ่าน ${logisticsProvider} เลขพัสดุ ${trackingNumber}`,
+    })
+
+>>>>>>> 4303a83a775535a96991dbfeb834969f699a406c
     return { success: true, data: updated }
   })
 }
