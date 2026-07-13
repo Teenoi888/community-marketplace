@@ -4,6 +4,7 @@ import { db } from "../../db/index.js"
 import { orders, orderItems, products, shops } from "../../db/schema.js"
 import { eq, and, gte, lte, sql } from "drizzle-orm"
 import { requireAuth } from "../../middleware/auth.js"
+import { sendLinePush } from "../line/index.js"
 
 const createOrderSchema = z.object({
   shopId: z.string().uuid(),
@@ -69,6 +70,29 @@ export async function orderRoutes(app: FastifyInstance) {
         priceSnapshot: price.toString(),
       }))
     )
+
+    // Notify seller via LINE (fire-and-forget)
+    try {
+      const shop = await db.query.shops.findFirst({
+        where: eq(shops.id, body.shopId),
+        with: { owner: true },
+      })
+      if (shop?.owner?.lineUid) {
+        const itemSummary = lineItems
+          .map(i => `  • ${i.product.name} x${i.quantity} = ฿${(i.price * i.quantity).toLocaleString()}`)
+          .join("\n")
+        await sendLinePush(
+          shop.owner.lineUid,
+          `🛒 มีออเดอร์ใหม่!\n\n` +
+          `รหัส: #${order.id.slice(0, 8).toUpperCase()}\n` +
+          `ยอดรวม: ฿${total.toLocaleString()}\n\n` +
+          `รายการสินค้า:\n${itemSummary}\n\n` +
+          `👉 ดูออเดอร์: ${process.env.NEXT_PUBLIC_WEB_URL || "https://chumchon.market"}/seller/orders`
+        )
+      }
+    } catch (e) {
+      app.log.warn("LINE notify failed (non-critical):", e)
+    }
 
     return reply.code(201).send({ success: true, data: order })
   })
@@ -168,11 +192,34 @@ export async function orderRoutes(app: FastifyInstance) {
   // Update order status (seller)
   app.patch("/:id/status", { preHandler: [requireAuth] }, async (request) => {
     const { id } = request.params as { id: string }
-    const { status } = request.body as { status: string }
+    const { status, cancelReason } = request.body as { status: string; cancelReason?: string }
     const [updated] = await db.update(orders)
-      .set({ status: status as any, updatedAt: new Date() })
+      .set({
+        status: status as any,
+        ...(status === "cancelled" && cancelReason ? { cancelReason } : {}),
+        updatedAt: new Date(),
+      })
       .where(eq(orders.id, id))
       .returning()
+
+    // Notify buyer when seller marks as shipped or delivered
+    if (status === "shipped" || status === "delivered") {
+      try {
+        const order = await db.query.orders.findFirst({
+          where: eq(orders.id, id),
+          with: { buyer: true },
+        })
+        if (order?.buyer?.lineUid) {
+          const msg = status === "shipped"
+            ? `🚚 สินค้าของคุณถูกจัดส่งแล้ว!\n\nรหัสออเดอร์: #${id.slice(0, 8).toUpperCase()}\n👉 ติดตามพัสดุได้ที่: ${process.env.NEXT_PUBLIC_WEB_URL || "https://chumchon.market"}/orders/${id}`
+            : `✅ สินค้าถึงมือคุณแล้ว!\n\nรหัสออเดอร์: #${id.slice(0, 8).toUpperCase()}\nขอบคุณที่ใช้บริการตลาดชุมชนครับ 🙏`
+          await sendLinePush(order.buyer.lineUid, msg)
+        }
+      } catch (e) {
+        app.log.warn("LINE notify buyer failed:", e)
+      }
+    }
+
     return { success: true, data: updated }
   })
 

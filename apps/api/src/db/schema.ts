@@ -104,6 +104,7 @@ export const orders = pgTable("orders", {
   deliveryAddress: jsonb("delivery_address").notNull(),
   trackingNumber: text("tracking_number"),
   logisticsProvider: text("logistics_provider"),
+  cancelReason: text("cancel_reason"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 })
