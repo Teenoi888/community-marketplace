@@ -59,7 +59,7 @@ export async function authRoutes(app: FastifyInstance) {
 
     const { accessToken, refreshToken } = createTokens(app, user.id)
     reply.setCookie("refreshToken", refreshToken, { httpOnly: true, sameSite: "lax", path: "/" })
-    return { success: true, accessToken, user: { id: user.id, name: user.name, phone: user.phone } }
+    return { success: true, accessToken, user: { id: user.id, name: user.name, phone: user.phone, role: user.role } }
   })
 
   // Login
@@ -74,7 +74,7 @@ export async function authRoutes(app: FastifyInstance) {
 
     const { accessToken, refreshToken } = createTokens(app, user.id)
     reply.setCookie("refreshToken", refreshToken, { httpOnly: true, sameSite: "lax", path: "/" })
-    return { success: true, accessToken, user: { id: user.id, name: user.name, phone: user.phone, avatarUrl: user.avatarUrl } }
+    return { success: true, accessToken, user: { id: user.id, name: user.name, phone: user.phone, avatarUrl: user.avatarUrl, role: user.role } }
   })
 
   // Refresh token
@@ -134,7 +134,7 @@ export async function authRoutes(app: FastifyInstance) {
 
     const { accessToken, refreshToken } = createTokens(app, user.id)
     reply.setCookie("refreshToken", refreshToken, { httpOnly: true, sameSite: "lax", path: "/" })
-    return { success: true, accessToken, user: { id: user.id, name: user.name, email: user.email, avatarUrl: user.avatarUrl } }
+    return { success: true, accessToken, user: { id: user.id, name: user.name, email: user.email, avatarUrl: user.avatarUrl, role: user.role } }
   })
 
   // Request password reset OTP
