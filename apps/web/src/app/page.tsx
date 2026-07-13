@@ -1,9 +1,9 @@
+import { Suspense } from "react"
 import { MainNav } from "@/components/layout/MainNav"
 import { HeroSection } from "@/components/marketplace/HeroSection"
 import { CommunityGrid } from "@/components/marketplace/CommunityGrid"
 import { ProductFeed } from "@/components/marketplace/ProductFeed"
 import { CategoryBar } from "@/components/marketplace/CategoryBar"
-import { Suspense } from "react"
 
 export default function HomePage() {
   return (
@@ -22,7 +22,9 @@ export default function HomePage() {
 
         <section>
           <h2 className="text-xl font-bold text-gray-800 mb-4">สินค้าทั้งหมด</h2>
-          <ProductFeed />
+          <Suspense fallback={<div className="text-gray-400">กำลังโหลด...</div>}>
+            <ProductFeed />
+          </Suspense>
         </section>
       </div>
     </main>

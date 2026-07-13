@@ -12,22 +12,57 @@
     {
       "idx": 1,
       "version": "7",
-      "when": 1720440060000,
-      "tag": "0001_user_addresses",
+      "when": 1783796498289,
+      "tag": "0001_watery_toxin",
       "breakpoints": true
     },
     {
       "idx": 2,
       "version": "7",
-      "when": 1720440120000,
-      "tag": "0002_admin_categories",
+      "when": 1783799261593,
+      "tag": "0002_curious_pestilence",
       "breakpoints": true
     },
     {
       "idx": 3,
       "version": "7",
-      "when": 1720440180000,
-      "tag": "0003_password_resets",
+      "when": 1783799400000,
+      "tag": "0003_fix_users_google_facebook_columns",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1783849215383,
+      "tag": "0004_user_addresses",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1783851027724,
+      "tag": "0005_admin_categories",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1783870618164,
+      "tag": "0006_password_resets",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1783876322442,
+      "tag": "0007_notifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1783884914592,
+      "tag": "0008_message_read_receipts",
       "breakpoints": true
     }
   ]

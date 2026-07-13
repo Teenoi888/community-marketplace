@@ -116,7 +116,7 @@ function ResetPasswordForm() {
 
       <p className="text-center text-xs text-gray-400">
         OTP หมดอายุใน 15 นาที ·{" "}
-        <Link href="/forgot-password" className="text-primary-600 hover:underline">ขอ OTP ใหม่</Link>
+        <Link href="/forgot-password-phone" className="text-primary-600 hover:underline">ขอ OTP ใหม่</Link>
       </p>
     </form>
   )

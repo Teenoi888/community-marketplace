@@ -1,21 +1,25 @@
 "use client"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { ShoppingCart, Search, Bell, Menu, Store, User, LogOut, ChevronDown, X, Home, Package, MessageSquare, ShoppingBag } from "lucide-react"
 import { useState, useRef, useEffect, useCallback } from "react"
-import { useRouter } from "next/navigation"
 import { useAuthStore } from "@/lib/store/auth"
 import { useCartStore } from "@/lib/store/cart"
-import { useInactivityLogout } from "@/lib/hooks/useInactivityLogout"
 import { api } from "@/lib/api"
+import { useInactivityLogout } from "@/lib/hooks/useInactivityLogout"
+import { useNotifications } from "@/lib/hooks/useNotifications"
+import { useUnreadChat } from "@/lib/hooks/useUnreadChat"
 
 export function MainNav() {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [hasCommunity, setHasCommunity] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const router = useRouter()
   const { user, setUser, logout } = useAuthStore()
+  const cartCount = useCartStore((s) => s.itemCount())
+  const [mounted, setMounted] = useState(false)
 
   const handleLogout = useCallback(async () => {
     try { await api.post("/auth/logout") } catch { /* ignore */ }
@@ -24,11 +28,14 @@ export function MainNav() {
     setMobileOpen(false)
     router.push("/login")
   }, [logout, router])
-  const cartCount = useCartStore((s) => s.itemCount())
+
   useInactivityLogout()
+  const { unreadCount } = useNotifications()
+  const { unreadCount: unreadChatCount } = useUnreadChat()
 
   // Restore session
   useEffect(() => {
+    setMounted(true)
     const token = localStorage.getItem("access_token")
     if (token && !user) {
       api.get("/auth/me").then(res => {
@@ -79,7 +86,13 @@ export function MainNav() {
             </Link>
 
             {/* Search */}
-            <div className="flex-1">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                if (searchQuery.trim()) router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`)
+              }}
+              className="flex-1"
+            >
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
@@ -90,18 +103,29 @@ export function MainNav() {
                   className="w-full pl-9 pr-4 py-2 border border-gray-300 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-gray-50"
                 />
               </div>
-            </div>
+            </form>
 
             {/* Desktop actions */}
             <div className="hidden sm:flex items-center gap-3">
               <Link href="/cart" className="relative p-2 text-gray-600 hover:text-gray-900">
                 <ShoppingCart className="w-5 h-5" />
-                {cartCount > 0 && (
+                {mounted && cartCount > 0 && (
                   <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">{cartCount > 99 ? "99+" : cartCount}</span>
                 )}
               </Link>
-              <Link href="/notifications" className="p-2 text-gray-600 hover:text-gray-900">
+              {user && (
+                <Link href="/chat" className="relative p-2 text-gray-600 hover:text-gray-900">
+                  <MessageSquare className="w-5 h-5" />
+                  {mounted && unreadChatCount > 0 && (
+                    <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">{unreadChatCount > 99 ? "99+" : unreadChatCount}</span>
+                  )}
+                </Link>
+              )}
+              <Link href="/notifications" className="relative p-2 text-gray-600 hover:text-gray-900">
                 <Bell className="w-5 h-5" />
+                {mounted && unreadCount > 0 && (
+                  <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">{unreadCount > 99 ? "99+" : unreadCount}</span>
+                )}
               </Link>
 
               {user ? (
@@ -159,7 +183,7 @@ export function MainNav() {
             <div className="flex sm:hidden items-center gap-2">
               <Link href="/cart" className="relative p-2 text-gray-600">
                 <ShoppingCart className="w-5 h-5" />
-                {cartCount > 0 && (
+                {mounted && cartCount > 0 && (
                   <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">{cartCount > 99 ? "99+" : cartCount}</span>
                 )}
               </Link>
@@ -233,11 +257,26 @@ export function MainNav() {
                   <Link href="/orders" onClick={closeMobile} className="flex items-center gap-3 px-5 py-3 text-gray-700 hover:bg-gray-50 active:bg-gray-100 text-sm font-medium">
                     <ShoppingBag className="w-5 h-5 text-gray-400" /> คำสั่งซื้อของฉัน
                   </Link>
+                  <Link href="/notifications" onClick={closeMobile} className="flex items-center gap-3 px-5 py-3 text-gray-700 hover:bg-gray-50 active:bg-gray-100 text-sm font-medium">
+                    <span className="relative">
+                      <Bell className="w-5 h-5 text-gray-400" />
+                      {mounted && unreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 text-white text-[9px] rounded-full flex items-center justify-center">{unreadCount > 9 ? "9+" : unreadCount}</span>
+                      )}
+                    </span>
+                    การแจ้งเตือน
+                  </Link>
                   <Link href="/dashboard" onClick={closeMobile} className="flex items-center gap-3 px-5 py-3 text-gray-700 hover:bg-gray-50 active:bg-gray-100 text-sm font-medium">
                     <Package className="w-5 h-5 text-gray-400" /> จัดการร้านค้า
                   </Link>
                   <Link href="/chat" onClick={closeMobile} className="flex items-center gap-3 px-5 py-3 text-gray-700 hover:bg-gray-50 active:bg-gray-100 text-sm font-medium">
-                    <MessageSquare className="w-5 h-5 text-gray-400" /> แชท
+                    <span className="relative">
+                      <MessageSquare className="w-5 h-5 text-gray-400" />
+                      {mounted && unreadChatCount > 0 && (
+                        <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 text-white text-[9px] rounded-full flex items-center justify-center">{unreadChatCount > 9 ? "9+" : unreadChatCount}</span>
+                      )}
+                    </span>
+                    แชท
                   </Link>
                   {hasCommunity && (
                     <Link href="/my-community" onClick={closeMobile} className="flex items-center gap-3 px-5 py-3 text-gray-700 hover:bg-gray-50 active:bg-gray-100 text-sm font-medium">

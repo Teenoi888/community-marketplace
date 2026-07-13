@@ -2,18 +2,8 @@ import type { FastifyInstance } from "fastify"
 import { z } from "zod"
 import axios from "axios"
 import { db } from "../../db/index.js"
-import { payments, orders, orderItems, products } from "../../db/schema.js"
-import { eq, sql } from "drizzle-orm"
-
-// Decrement stock for all items in an order (called once payment is confirmed)
-async function decrementStock(orderId: string) {
-  const items = await db.query.orderItems.findMany({ where: eq(orderItems.orderId, orderId) })
-  for (const item of items) {
-    await db.update(products)
-      .set({ stock: sql`GREATEST(0, ${products.stock} - ${item.qty})` })
-      .where(eq(products.id, item.productId))
-  }
-}
+import { payments, orders } from "../../db/schema.js"
+import { eq } from "drizzle-orm"
 import { requireAuth } from "../../middleware/auth.js"
 
 const createPaymentSchema = z.object({
@@ -53,7 +43,6 @@ export async function paymentRoutes(app: FastifyInstance) {
         if (verified) {
           await db.update(payments).set({ status: "verified", verifiedAt: new Date() }).where(eq(payments.id, payment.id))
           await db.update(orders).set({ status: "paid", updatedAt: new Date() }).where(eq(orders.id, body.orderId))
-          await decrementStock(body.orderId)
           return { success: true, data: { ...payment, status: "verified" }, verified: true }
         }
       } catch (e) {
@@ -137,7 +126,6 @@ export async function paymentRoutes(app: FastifyInstance) {
             reference: charge.id, verifiedAt: new Date(),
           }).returning()
           await db.update(orders).set({ status: "paid", updatedAt: new Date() }).where(eq(orders.id, order.id))
-          await decrementStock(order.id)
           return { success: true, data: { gateway: "omise", payment, verified: true } }
         }
         return reply.code(402).send({ success: false, error: `การชำระล้มเหลว: ${charge.failure_message}` })
@@ -261,7 +249,6 @@ export async function paymentRoutes(app: FastifyInstance) {
     await db.update(orders)
       .set({ status: "paid", updatedAt: new Date() })
       .where(eq(orders.id, orderId))
-    await decrementStock(orderId)
 
     return { success: true, data: payment }
   })
@@ -274,7 +261,6 @@ export async function paymentRoutes(app: FastifyInstance) {
       if (payment) {
         await db.update(payments).set({ status: "verified", verifiedAt: new Date() }).where(eq(payments.id, payment.id))
         await db.update(orders).set({ status: "paid", updatedAt: new Date() }).where(eq(orders.id, referenceNo))
-        await decrementStock(referenceNo)
       }
     }
     return { success: true }
@@ -290,7 +276,6 @@ export async function paymentRoutes(app: FastifyInstance) {
         if (payment) {
           await db.update(payments).set({ status: "verified", verifiedAt: new Date(), reference: event.data.id }).where(eq(payments.id, payment.id))
           await db.update(orders).set({ status: "paid", updatedAt: new Date() }).where(eq(orders.id, orderId))
-          await decrementStock(orderId)
         }
       }
     }
@@ -311,7 +296,6 @@ export async function paymentRoutes(app: FastifyInstance) {
         if (payment) {
           await db.update(payments).set({ status: "verified", verifiedAt: new Date(), reference: body.tranRef }).where(eq(payments.id, payment.id))
           await db.update(orders).set({ status: "paid", updatedAt: new Date() }).where(eq(orders.id, order.id))
-          await decrementStock(order.id)
         }
       }
     }

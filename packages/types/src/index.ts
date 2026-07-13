@@ -6,6 +6,7 @@ export interface User {
   email?: string
   lineUid?: string
   avatarUrl?: string
+  role?: 'user' | 'admin'
   createdAt: Date
 }
 
@@ -134,6 +135,7 @@ export interface Message {
   senderId: string
   content: string
   type: MessageType
+  readAt?: Date | null
   createdAt: Date
 }
 

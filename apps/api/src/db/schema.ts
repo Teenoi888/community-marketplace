@@ -21,8 +21,8 @@ export const users = pgTable("users", {
   email: text("email").unique(),
   passwordHash: text("password_hash"),
   lineUid: text("line_uid").unique(),
-  googleUid: text("google_uid"),
-  facebookUid: text("facebook_uid"),
+  googleId: text("google_id").unique(),
+  facebookId: text("facebook_id").unique(),
   avatarUrl: text("avatar_url"),
   role: userRoleEnum("role").default("user").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -43,6 +43,16 @@ export const categories = pgTable("categories", {
   emoji: text("emoji").default("📦").notNull(),
   sortOrder: integer("sort_order").default(0).notNull(),
   isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+})
+
+export const otpCodes = pgTable("otp_codes", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").notNull(),
+  code: text("code").notNull(),
+  purpose: text("purpose").notNull().default("login"),
+  expiresAt: timestamp("expires_at").notNull(),
+  consumedAt: timestamp("consumed_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 })
 
@@ -104,7 +114,6 @@ export const orders = pgTable("orders", {
   deliveryAddress: jsonb("delivery_address").notNull(),
   trackingNumber: text("tracking_number"),
   logisticsProvider: text("logistics_provider"),
-  cancelReason: text("cancel_reason"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 })
@@ -144,13 +153,26 @@ export const messages = pgTable("messages", {
   senderId: uuid("sender_id").references(() => users.id).notNull(),
   content: text("content").notNull(),
   type: messageTypeEnum("type").default("text").notNull(),
+  readAt: timestamp("read_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+})
+
+export const notifications = pgTable("notifications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  type: text("type").notNull(),
+  title: text("title").notNull(),
+  body: text("body").notNull(),
+  link: text("link"),
+  orderId: uuid("order_id").references(() => orders.id, { onDelete: "cascade" }),
+  isRead: boolean("is_read").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 })
 
 export const userAddresses = pgTable("user_addresses", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
-  label: text("label").default("บ้าน").notNull(),       // บ้าน, ที่ทำงาน, อื่นๆ
+  label: text("label").default("บ้าน").notNull(),
   name: text("name").notNull(),
   phone: text("phone").notNull(),
   address: text("address").notNull(),
@@ -170,6 +192,11 @@ export const usersRelations = relations(users, ({ many }) => ({
 
 export const userAddressesRelations = relations(userAddresses, ({ one }) => ({
   user: one(users, { fields: [userAddresses.userId], references: [users.id] }),
+}))
+
+export const notificationsRelations = relations(notifications, ({ one }) => ({
+  user: one(users, { fields: [notifications.userId], references: [users.id] }),
+  order: one(orders, { fields: [notifications.orderId], references: [orders.id] }),
 }))
 
 export const communitiesRelations = relations(communities, ({ many }) => ({
