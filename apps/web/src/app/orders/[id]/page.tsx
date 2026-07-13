@@ -227,8 +227,8 @@ function ConfirmReceivedButton({ orderId, onConfirmed }: { orderId: string; onCo
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
 
-  async function confirm() {
-    if (!confirm("ยืนยันว่าได้รับสินค้าครบถ้วนแล้ว?")) return
+  async function handleConfirm() {
+    if (!window.confirm("ยืนยันว่าได้รับสินค้าครบถ้วนแล้ว?")) return
     setLoading(true)
     try {
       await api.patch(`/orders/${orderId}/status`, { status: "delivered" })
@@ -249,7 +249,7 @@ function ConfirmReceivedButton({ orderId, onConfirmed }: { orderId: string; onCo
 
   return (
     <button
-      onClick={confirm}
+      onClick={handleConfirm}
       disabled={loading}
       className="w-full py-4 rounded-2xl bg-green-600 text-white font-semibold text-base hover:bg-green-700 active:scale-95 transition-all disabled:opacity-50"
     >
