@@ -1,8 +1,7 @@
 "use client"
 import { useEffect, useState } from "react"
-import Link from "next/link"
-import { ArrowLeft, Search, Shield, ShieldOff, KeyRound, Phone, User } from "lucide-react"
-import { MainNav } from "@/components/layout/MainNav"
+import { Search, Shield, ShieldOff, KeyRound, Phone, User } from "lucide-react"
+import { AdminLayout } from "@/components/admin/AdminLayout"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
 
@@ -64,17 +63,9 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <MainNav />
-      <div className="max-w-4xl mx-auto px-4 py-8">
-
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <Link href="/admin" className="text-gray-400 hover:text-gray-700">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <h1 className="text-xl font-bold text-gray-900">จัดการผู้ใช้</h1>
-        </div>
+    <AdminLayout title="จัดการผู้ใช้">
+      <>
+      <div className="max-w-4xl">
 
         {/* Search */}
         <form onSubmit={handleSearch} className="flex gap-2 mb-6">
@@ -196,6 +187,7 @@ export default function AdminUsersPage() {
           </div>
         </div>
       )}
-    </main>
+      </>
+    </AdminLayout>
   )
 }

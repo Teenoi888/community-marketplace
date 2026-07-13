@@ -1,8 +1,7 @@
 "use client"
 import { useEffect, useState } from "react"
-import Link from "next/link"
-import { ArrowLeft, Plus, Pencil, Trash2, Check, X, GripVertical } from "lucide-react"
-import { MainNav } from "@/components/layout/MainNav"
+import { Plus, Pencil, Trash2, Check, X } from "lucide-react"
+import { AdminLayout } from "@/components/admin/AdminLayout"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
 
@@ -84,18 +83,11 @@ export default function AdminCategoriesPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <MainNav />
-      <div className="max-w-3xl mx-auto px-4 py-8">
+    <AdminLayout title="จัดการหมวดหมู่สินค้า">
+      <div className="max-w-3xl">
 
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-3">
-            <Link href="/admin" className="text-gray-400 hover:text-gray-700">
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <h1 className="text-xl font-bold text-gray-900">จัดการหมวดหมู่สินค้า</h1>
-          </div>
+        <div className="flex items-center justify-end mb-6">
           <button onClick={() => setShowAdd(!showAdd)} className="btn-primary flex items-center gap-2 px-4 py-2">
             <Plus className="w-4 h-4" /> เพิ่มหมวดหมู่
           </button>
@@ -219,6 +211,6 @@ export default function AdminCategoriesPage() {
           </div>
         )}
       </div>
-    </main>
+    </AdminLayout>
   )
 }
