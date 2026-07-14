@@ -212,9 +212,9 @@ export default function ProductDetailPage() {
           <ArrowLeft className="w-4 h-4" /> กลับ
         </button>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
           {/* Images */}
-          <div>
+          <div className="md:sticky md:top-24">
             <div className="relative aspect-square rounded-2xl overflow-hidden bg-gray-100 mb-3">
               {product.images?.length > 0
                 ? <Image src={product.images[selectedImage]} alt={product.name} fill className="object-cover" />
