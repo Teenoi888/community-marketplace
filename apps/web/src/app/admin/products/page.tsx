@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useMemo, useState } from "react"
-import { Search, Pencil, Trash2, Package, X } from "lucide-react"
+import { Search, Pencil, Trash2, Package, X, ChevronDown } from "lucide-react"
 import { AdminLayout } from "@/components/admin/AdminLayout"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
@@ -186,11 +186,14 @@ export default function AdminProductsPage() {
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-700 block mb-1">สถานะ</label>
-                <select value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value as Product["status"] }))} className="input">
-                  <option value="active">แสดง</option>
-                  <option value="inactive">ซ่อน</option>
-                  <option value="out_of_stock">สินค้าหมด</option>
-                </select>
+                <div className="relative">
+                  <select value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value as Product["status"] }))} className="input appearance-none pr-9">
+                    <option value="active">แสดง</option>
+                    <option value="inactive">ซ่อน</option>
+                    <option value="out_of_stock">สินค้าหมด</option>
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
               </div>
 
               <div className="flex gap-2 pt-2">

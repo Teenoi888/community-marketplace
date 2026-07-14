@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
 import { api } from "@/lib/api"
-import { Upload, X, ArrowLeft, Trash2 } from "lucide-react"
+import { Upload, X, ArrowLeft, Trash2, ChevronDown } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 
@@ -196,10 +196,13 @@ export default function EditProductPage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">หมวดหมู่ *</label>
-              <select {...register("category")} className="input">
-                <option value="">เลือกหมวดหมู่</option>
-                {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
-              </select>
+              <div className="relative">
+                <select {...register("category")} className="input appearance-none pr-9">
+                  <option value="">เลือกหมวดหมู่</option>
+                  {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                </select>
+                <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
               {errors.category && <p className="text-red-500 text-xs mt-1">{errors.category.message}</p>}
             </div>
           </div>

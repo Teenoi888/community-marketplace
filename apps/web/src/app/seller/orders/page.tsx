@@ -144,11 +144,14 @@ export default function SellerOrdersPage() {
                           </p>
                         )}
                         <div className="flex gap-2">
-                          <select value={t.provider}
-                            onChange={e => setTracking(prev => ({ ...prev, [order.id]: { ...t, provider: e.target.value } }))}
-                            className="input text-sm py-2 w-40 flex-shrink-0">
-                            {LOGISTICS.map(l => <option key={l} value={l}>{l}</option>)}
-                          </select>
+                          <div className="relative w-40 flex-shrink-0">
+                            <select value={t.provider}
+                              onChange={e => setTracking(prev => ({ ...prev, [order.id]: { ...t, provider: e.target.value } }))}
+                              className="input text-sm py-2 appearance-none pr-9 w-full">
+                              {LOGISTICS.map(l => <option key={l} value={l}>{l}</option>)}
+                            </select>
+                            <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          </div>
                           <input value={t.number} placeholder="เลขพัสดุ"
                             onChange={e => setTracking(prev => ({ ...prev, [order.id]: { ...t, number: e.target.value } }))}
                             className="input text-sm py-2 flex-1" />
