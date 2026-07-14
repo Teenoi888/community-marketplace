@@ -7,6 +7,7 @@ import { MainNav } from "@/components/layout/MainNav"
 import { useCartStore } from "@/lib/store/cart"
 import { api } from "@/lib/api"
 import { PROVINCES, getDistricts } from "@/lib/thailand-address"
+import { getSubdistricts } from "@/lib/thailand-subdistricts"
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 interface SavedAddress {
@@ -17,6 +18,7 @@ interface SavedAddress {
   address: string
   province: string
   district: string
+  subdistrict: string
   zipCode: string
   isDefault: boolean
 }
@@ -28,6 +30,7 @@ interface FormState {
   address: string
   province: string
   district: string
+  subdistrict: string
   zipCode: string
   saveAddress: boolean
   setAsDefault: boolean
@@ -42,7 +45,9 @@ const LABEL_OPTIONS = ["บ้าน", "ที่ทำงาน", "อื่น
 // ─── Main ───────────────────────────────────────────────────────────────────────
 export default function CheckoutPage() {
   const router = useRouter()
-  const { items, total, clearCart } = useCartStore()
+  const { selectedItems, selectedTotal, removeItems } = useCartStore()
+  const items = selectedItems()
+  const total = selectedTotal
   const isCheckingOut = useRef(false)
 
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([])
@@ -55,12 +60,13 @@ export default function CheckoutPage() {
   // Plain controlled form state — no react-hook-form
   const [form, setForm] = useState<FormState>({
     label: "บ้าน", name: "", phone: "", address: "",
-    province: "", district: "", zipCode: "",
+    province: "", district: "", subdistrict: "", zipCode: "",
     saveAddress: true, setAsDefault: false,
   })
   const [formErrors, setFormErrors] = useState<Partial<Record<keyof FormState, string>>>({})
 
   const districts = getDistricts(form.province)
+  const subdistricts = getSubdistricts(form.province, form.district)
 
   // Load saved addresses
   useEffect(() => {
@@ -82,24 +88,29 @@ export default function CheckoutPage() {
   }
 
   function onProvinceChange(e: React.ChangeEvent<HTMLSelectElement>) {
-    setForm(prev => ({ ...prev, province: e.target.value, district: "", zipCode: "" }))
-    setFormErrors(prev => ({ ...prev, province: undefined, district: undefined, zipCode: undefined }))
+    setForm(prev => ({ ...prev, province: e.target.value, district: "", subdistrict: "", zipCode: "" }))
+    setFormErrors(prev => ({ ...prev, province: undefined, district: undefined, subdistrict: undefined, zipCode: undefined }))
   }
 
   function onDistrictChange(e: React.ChangeEvent<HTMLSelectElement>) {
     const val = e.target.value
     const found = districts.find(d => d.name === val)
-    setForm(prev => ({ ...prev, district: val, zipCode: found?.zipCode ?? "" }))
-    setFormErrors(prev => ({ ...prev, district: undefined, zipCode: undefined }))
+    setForm(prev => ({ ...prev, district: val, subdistrict: "", zipCode: found?.zipCode ?? "" }))
+    setFormErrors(prev => ({ ...prev, district: undefined, subdistrict: undefined, zipCode: undefined }))
+  }
+
+  function onSubdistrictChange(e: React.ChangeEvent<HTMLSelectElement>) {
+    setField("subdistrict", e.target.value)
   }
 
   function validateForm(): boolean {
     const errs: Partial<Record<keyof FormState, string>> = {}
     if (!form.name || form.name.trim().length < 2)    errs.name = "กรุณากรอกชื่อ-นามสกุล"
-    if (!form.phone || form.phone.trim().length < 9)  errs.phone = "เบอร์โทรไม่ถูกต้อง"
+    if (!form.phone || form.phone.length !== 10)      errs.phone = "กรุณากรอกเบอร์โทร 10 หลัก"
     if (!form.address || form.address.trim().length < 5) errs.address = "กรุณากรอกที่อยู่"
     if (!form.province)                               errs.province = "กรุณาเลือกจังหวัด"
     if (!form.district)                               errs.district = "กรุณาเลือกอำเภอ/เขต"
+    if (!form.subdistrict || form.subdistrict.trim().length < 2) errs.subdistrict = "กรุณากรอกตำบล/แขวง"
     if (!form.zipCode || form.zipCode.length !== 5)   errs.zipCode = "รหัสไปรษณีย์ไม่ถูกต้อง"
     setFormErrors(errs)
     return Object.keys(errs).length === 0
@@ -139,14 +150,14 @@ export default function CheckoutPage() {
       // Use selected saved address
       const addr = savedAddresses.find(a => a.id === selectedId)
       if (!addr) return toast.error("กรุณาเลือกที่อยู่")
-      deliveryAddress = { label: addr.label, name: addr.name, phone: addr.phone, address: addr.address, province: addr.province, district: addr.district, zipCode: addr.zipCode }
+      deliveryAddress = { label: addr.label, name: addr.name, phone: addr.phone, address: addr.address, province: addr.province, district: addr.district, subdistrict: addr.subdistrict, zipCode: addr.zipCode }
     } else {
       // Validate new address form
       if (!validateForm()) {
         toast.error("กรุณากรอกข้อมูลให้ครบถ้วน")
         return
       }
-      deliveryAddress = { label: form.label, name: form.name, phone: form.phone, address: form.address, province: form.province, district: form.district, zipCode: form.zipCode }
+      deliveryAddress = { label: form.label, name: form.name, phone: form.phone, address: form.address, province: form.province, district: form.district, subdistrict: form.subdistrict, zipCode: form.zipCode }
 
       // Try to save address (non-blocking — don't fail checkout if API not ready)
       if (form.saveAddress) {
@@ -185,7 +196,7 @@ export default function CheckoutPage() {
       )
 
       isCheckingOut.current = true
-      clearCart()
+      removeItems(items.map(i => i.product.id))
       router.push(`/checkout/${orders[0].id}`)
     } catch (err: any) {
       toast.error(err.response?.data?.error || "เกิดข้อผิดพลาด กรุณาลองใหม่")
@@ -202,8 +213,8 @@ export default function CheckoutPage() {
   return (
     <main>
       <MainNav />
-      <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">📝 ที่อยู่จัดส่ง</h1>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <h1 className="text-2xl font-bold text-gray-900 mb-6">ที่อยู่จัดส่ง</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
@@ -294,10 +305,11 @@ export default function CheckoutPage() {
                         <label className="block text-sm font-medium text-gray-700 mb-1">เบอร์โทรศัพท์ *</label>
                         <input
                           value={form.phone}
-                          onChange={e => setField("phone", e.target.value)}
+                          onChange={e => setField("phone", e.target.value.replace(/\D/g, "").slice(0, 10))}
                           className={`input ${formErrors.phone ? "border-red-400" : ""}`}
                           placeholder="0812345678"
                           type="tel"
+                          inputMode="numeric"
                         />
                         {formErrors.phone && <p className="text-red-500 text-xs mt-1">{formErrors.phone}</p>}
                       </div>
@@ -315,31 +327,63 @@ export default function CheckoutPage() {
                       {formErrors.address && <p className="text-red-500 text-xs mt-1">{formErrors.address}</p>}
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">จังหวัด *</label>
-                        <select
-                          value={form.province}
-                          onChange={onProvinceChange}
-                          className={`input ${formErrors.province ? "border-red-400" : ""}`}
-                        >
-                          <option value="">-- เลือกจังหวัด --</option>
-                          {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
-                        </select>
+                        <div className="relative">
+                          <select
+                            value={form.province}
+                            onChange={onProvinceChange}
+                            className={`input appearance-none pr-9 ${formErrors.province ? "border-red-400" : ""}`}
+                          >
+                            <option value="">-- เลือกจังหวัด --</option>
+                            {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
+                          </select>
+                          <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        </div>
                         {formErrors.province && <p className="text-red-500 text-xs mt-1">{formErrors.province}</p>}
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">อำเภอ/เขต *</label>
-                        <select
-                          value={form.district}
-                          onChange={onDistrictChange}
-                          className={`input ${formErrors.district ? "border-red-400" : ""}`}
-                          disabled={!form.province}
-                        >
-                          <option value="">{form.province ? "-- เลือกอำเภอ/เขต --" : "เลือกจังหวัดก่อน"}</option>
-                          {districts.map(d => <option key={d.name} value={d.name}>{d.name}</option>)}
-                        </select>
+                        <div className="relative">
+                          <select
+                            value={form.district}
+                            onChange={onDistrictChange}
+                            className={`input appearance-none pr-9 ${formErrors.district ? "border-red-400" : ""}`}
+                            disabled={!form.province}
+                          >
+                            <option value="">{form.province ? "-- เลือกอำเภอ/เขต --" : "เลือกจังหวัดก่อน"}</option>
+                            {districts.map(d => <option key={d.name} value={d.name}>{d.name}</option>)}
+                          </select>
+                          <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        </div>
                         {formErrors.district && <p className="text-red-500 text-xs mt-1">{formErrors.district}</p>}
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">ตำบล/แขวง *</label>
+                        {form.district && subdistricts.length === 0 ? (
+                          // Fallback to free text for the handful of districts our dataset doesn't cover
+                          <input
+                            value={form.subdistrict}
+                            onChange={e => setField("subdistrict", e.target.value)}
+                            className={`input ${formErrors.subdistrict ? "border-red-400" : ""}`}
+                            placeholder="สุขุมวิท"
+                          />
+                        ) : (
+                          <div className="relative">
+                            <select
+                              value={form.subdistrict}
+                              onChange={onSubdistrictChange}
+                              className={`input appearance-none pr-9 ${formErrors.subdistrict ? "border-red-400" : ""}`}
+                              disabled={!form.district}
+                            >
+                              <option value="">{form.district ? "-- เลือกตำบล/แขวง --" : "เลือกอำเภอ/เขตก่อน"}</option>
+                              {subdistricts.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                            <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                          </div>
+                        )}
+                        {formErrors.subdistrict && <p className="text-red-500 text-xs mt-1">{formErrors.subdistrict}</p>}
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">รหัสไปรษณีย์ *</label>
@@ -449,7 +493,7 @@ function AddressCard({ addr, selected, onSelect, onSetDefault, onDelete, deletin
       </div>
 
       <p className="text-sm font-medium text-gray-900">{addr.name} · {addr.phone}</p>
-      <p className="text-sm text-gray-500 mt-0.5 pr-6">{addr.address}, {addr.district}, {addr.province} {addr.zipCode}</p>
+      <p className="text-sm text-gray-500 mt-0.5 pr-6">{addr.address}, {addr.subdistrict ? `${addr.subdistrict}, ` : ""}{addr.district}, {addr.province} {addr.zipCode}</p>
 
       <div className="flex items-center gap-3 mt-3 pt-3 border-t border-gray-100">
         {!addr.isDefault && (

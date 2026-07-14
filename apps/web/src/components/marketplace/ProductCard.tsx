@@ -69,6 +69,11 @@ export function ProductCard({ product }: ProductCardProps) {
           <div className="flex items-center gap-1 text-gray-400 text-xs mb-2">
             <MapPin className="w-3 h-3" />
             <span className="line-clamp-1">{product.shop.community.name}</span>
+            {product.distanceKm != null && (
+              <span className="flex-shrink-0 text-primary-600 font-medium">
+                · {product.distanceKm < 1 ? "ใกล้กว่า 1 กม." : `${Math.round(product.distanceKm)} กม.`}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center justify-between">

@@ -206,7 +206,7 @@ export default function ProductDetailPage() {
   return (
     <main className="min-h-screen bg-gray-50">
       <MainNav />
-      <div className="max-w-4xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Back */}
         <button onClick={() => router.back()} className="flex items-center gap-2 text-gray-500 hover:text-gray-700 mb-6">
           <ArrowLeft className="w-4 h-4" /> กลับ
@@ -236,30 +236,68 @@ export default function ProductDetailPage() {
           </div>
 
           {/* Info */}
-          <div className="space-y-4">
+          <div className="space-y-5 pb-24 md:pb-0">
+            {/* 1. Identity: category, title, rating */}
             <div>
-              <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded-full">{product.category}</span>
+              <span className="inline-block text-xs font-semibold text-primary-700 bg-primary-50 px-2.5 py-1 rounded-full border border-primary-100">
+                {product.category}
+              </span>
               <h1 className="text-2xl font-bold text-gray-900 mt-2">{product.name}</h1>
-              {/* Avg Rating */}
               {totalReviews > 0 && (
-                <div className="flex items-center gap-2 mt-1">
+                <div className="flex items-center gap-2 mt-1.5">
                   <StarRow rating={Math.round(avgRating)} size={14} />
-                  <span className="text-sm font-semibold text-yellow-500">{avgRating.toFixed(1)}</span>
-                  <span className="text-xs text-gray-400">({totalReviews} รีวิว)</span>
+                  <span className="text-sm font-semibold text-yellow-600">{avgRating.toFixed(1)}</span>
+                  <span className="text-xs text-gray-500">({totalReviews} รีวิว)</span>
                 </div>
               )}
-              <p className="text-3xl font-bold text-primary-600 mt-1">฿{price.toLocaleString()}</p>
             </div>
 
+            {/* 2. Description — read before deciding to buy */}
             {product.description && (
-              <div className="bg-gray-50 rounded-xl p-4 border border-gray-100">
-                <h2 className="text-sm font-semibold text-gray-500 mb-2">รายละเอียดสินค้า</h2>
-                <p className="text-gray-700 leading-relaxed">{product.description}</p>
+              <div className="bg-white rounded-xl p-4 border border-gray-200">
+                <h2 className="text-sm font-semibold text-gray-700 mb-2">รายละเอียดสินค้า</h2>
+                <p className="text-gray-600 leading-relaxed">{product.description}</p>
               </div>
             )}
 
-            {/* Shop info */}
-            <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100">
+            {/* 3. Purchase card: price, stock, qty, CTA — kept together as one decision flow */}
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-3xl font-bold text-primary-600">฿{price.toLocaleString()}</p>
+                <p className={`text-sm font-medium px-2.5 py-1 rounded-full ${
+                  product.stock === 0 ? "bg-red-50 text-red-600"
+                  : product.stock <= 5 ? "bg-orange-50 text-orange-600"
+                  : "bg-gray-100 text-gray-600"
+                }`}>
+                  {product.stock === 0 ? "สินค้าหมด" : `คงเหลือ ${product.stock} ชิ้น`}
+                </p>
+              </div>
+
+              {product.stock > 0 && (
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700">จำนวน</span>
+                  <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden">
+                    <button onClick={() => setQty(q => Math.max(1, q - 1))}
+                      className="w-10 h-10 flex items-center justify-center hover:bg-gray-50 text-lg font-bold text-gray-700">−</button>
+                    <span className="w-12 text-center font-medium text-gray-900">{qty}</span>
+                    <button onClick={() => setQty(q => Math.min(product.stock, q + 1))}
+                      className="w-10 h-10 flex items-center justify-center hover:bg-gray-50 text-lg font-bold text-gray-700">+</button>
+                  </div>
+                </div>
+              )}
+
+              <button
+                onClick={addToCart}
+                disabled={product.stock === 0 || addingToCart}
+                className="hidden md:flex w-full btn-primary py-4 items-center justify-center gap-2 text-base disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <ShoppingCart className="w-5 h-5" />
+                {product.stock === 0 ? "สินค้าหมด" : "เพิ่มลงตะกร้า"}
+              </button>
+            </div>
+
+            {/* 4. Shop info — secondary to the purchase decision */}
+            <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-200">
               <Link href={`/communities/${product.shop.community?.slug}`}
                 className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity">
                 <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
@@ -268,7 +306,7 @@ export default function ProductDetailPage() {
                 <div className="min-w-0">
                   <p className="font-medium text-gray-900 truncate">{product.shop.name}</p>
                   {product.shop.community && (
-                    <p className="text-xs text-gray-400 flex items-center gap-1">
+                    <p className="text-xs text-gray-500 flex items-center gap-1">
                       <MapPin className="w-3 h-3" />
                       {product.shop.community.district}, {product.shop.community.province}
                     </p>
@@ -284,34 +322,19 @@ export default function ProductDetailPage() {
                 แชท
               </button>
             </div>
-
-            {/* Stock */}
-            <p className="text-sm text-gray-500">คงเหลือ <span className="font-medium text-gray-700">{product.stock}</span> ชิ้น</p>
-
-            {/* Qty */}
-            {product.stock > 0 && (
-              <div className="flex items-center gap-3">
-                <span className="text-sm text-gray-600">จำนวน</span>
-                <div className="flex items-center border border-gray-200 rounded-xl overflow-hidden">
-                  <button onClick={() => setQty(q => Math.max(1, q - 1))}
-                    className="w-10 h-10 flex items-center justify-center hover:bg-gray-50 text-lg font-bold">−</button>
-                  <span className="w-12 text-center font-medium">{qty}</span>
-                  <button onClick={() => setQty(q => Math.min(product.stock, q + 1))}
-                    className="w-10 h-10 flex items-center justify-center hover:bg-gray-50 text-lg font-bold">+</button>
-                </div>
-              </div>
-            )}
-
-            {/* Add to cart */}
-            <button
-              onClick={addToCart}
-              disabled={product.stock === 0 || addingToCart}
-              className="w-full btn-primary py-4 flex items-center justify-center gap-2 text-base disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <ShoppingCart className="w-5 h-5" />
-              {product.stock === 0 ? "สินค้าหมด" : "เพิ่มลงตะกร้า"}
-            </button>
           </div>
+        </div>
+
+        {/* Sticky add-to-cart on mobile so the CTA stays reachable while scrolling */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-3 z-20">
+          <button
+            onClick={addToCart}
+            disabled={product.stock === 0 || addingToCart}
+            className="w-full btn-primary py-3.5 flex items-center justify-center gap-2 text-base disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <ShoppingCart className="w-5 h-5" />
+            {product.stock === 0 ? "สินค้าหมด" : `เพิ่มลงตะกร้า · ฿${(price * qty).toLocaleString()}`}
+          </button>
         </div>
 
         {/* ── Reviews Section ── */}
@@ -319,7 +342,7 @@ export default function ProductDetailPage() {
           <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
             <Star className="w-5 h-5 text-yellow-400 fill-yellow-400" />
             รีวิวสินค้า
-            {totalReviews > 0 && <span className="text-sm font-normal text-gray-400">({totalReviews} รีวิว)</span>}
+            {totalReviews > 0 && <span className="text-sm font-normal text-gray-500">({totalReviews} รีวิว)</span>}
           </h2>
 
           {/* Summary bar */}
@@ -328,7 +351,7 @@ export default function ProductDetailPage() {
               <div className="text-center">
                 <p className="text-4xl font-bold text-gray-900">{avgRating.toFixed(1)}</p>
                 <StarRow rating={Math.round(avgRating)} size={18} />
-                <p className="text-xs text-gray-400 mt-1">{totalReviews} รีวิว</p>
+                <p className="text-xs text-gray-500 mt-1">{totalReviews} รีวิว</p>
               </div>
             </div>
           )}

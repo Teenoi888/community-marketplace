@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
 import { api } from "@/lib/api"
-import { Upload, X, ArrowLeft } from "lucide-react"
+import { Upload, X, ArrowLeft, ChevronDown } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 
@@ -93,7 +93,7 @@ function NewProductForm() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-2xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center gap-3 mb-6">
           <Link href="/products" className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
             <ArrowLeft className="w-5 h-5" />
@@ -155,10 +155,13 @@ function NewProductForm() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">หมวดหมู่ *</label>
-              <select {...register("category")} className="input">
-                <option value="">เลือกหมวดหมู่</option>
-                {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
-              </select>
+              <div className="relative">
+                <select {...register("category")} className="input appearance-none pr-9">
+                  <option value="">เลือกหมวดหมู่</option>
+                  {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
+                </select>
+                <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+              </div>
               {errors.category && <p className="text-red-500 text-xs mt-1">{errors.category.message}</p>}
             </div>
           </div>

@@ -18,6 +18,8 @@ import { paymentRoutes } from "./routes/payments/index.js"
 import { chatRoutes } from "./routes/chat/index.js"
 import { uploadRoutes } from "./routes/upload/index.js"
 import { lineRoutes } from "./routes/line/index.js"
+import { googleRoutes } from "./routes/google/index.js"
+import { facebookRoutes } from "./routes/facebook/index.js"
 import { trackingRoutes } from "./routes/tracking/index.js"
 import { addressRoutes } from "./routes/addresses/index.js"
 import { categoryRoutes } from "./routes/categories/index.js"
@@ -32,6 +34,8 @@ import bcrypt from "bcryptjs"
 import { notifyOrderStatus } from "./lib/notify.js"
 
 // Auto-migrate on startup — run all .sql files in order (all use IF NOT EXISTS so safe to re-run)
+// Each file is wrapped individually: a failure in one migration (e.g. a stale
+// duplicate-column error) must not silently skip every migration after it.
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const migrationClient = postgres(process.env.DATABASE_URL!, { max: 1 })
 console.log("⏳ Running migrations...")
@@ -41,14 +45,18 @@ try {
     .filter(f => f.endsWith(".sql"))
     .sort()
   for (const file of files) {
-    const sql = await readFile(path.join(migrationsDir, file), "utf-8")
-    await migrationClient.unsafe(sql)
-    console.log(`  ✓ ${file}`)
+    try {
+      const sql = await readFile(path.join(migrationsDir, file), "utf-8")
+      await migrationClient.unsafe(sql)
+      console.log(`  ✓ ${file}`)
+    } catch (err: any) {
+      // Non-fatal: schema may already be up to date (column/table already
+      // exists) — log and continue to the NEXT file rather than aborting
+      // every migration that comes after this one.
+      console.warn(`  ⚠️  ${file} warning (continuing):`, err?.message ?? err)
+    }
   }
   console.log("✅ Migrations done")
-} catch (err: any) {
-  // Non-fatal: schema may already be up to date (column/table already exists)
-  console.warn("⚠️  Migration warning (continuing):", err?.message ?? err)
 } finally {
   await migrationClient.end()
 }
@@ -86,6 +94,8 @@ await app.register(paymentRoutes,   { prefix: "/api/payments" })
 await app.register(chatRoutes,      { prefix: "/api/chat" })
 await app.register(uploadRoutes,    { prefix: "/api/upload" })
 await app.register(lineRoutes,      { prefix: "/api/line" })
+await app.register(googleRoutes,    { prefix: "/api/google" })
+await app.register(facebookRoutes,  { prefix: "/api/facebook" })
 await app.register(trackingRoutes,  { prefix: "/api/tracking" })
 await app.register(addressRoutes,   { prefix: "/api/addresses" })
 await app.register(categoryRoutes,  { prefix: "/api/categories" })

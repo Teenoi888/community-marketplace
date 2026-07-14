@@ -13,6 +13,7 @@ import { api } from "@/lib/api"
 import { useAuthStore } from "@/lib/store/auth"
 import { useCooldown } from "@/lib/hooks/useCooldown"
 import { useRouter } from "next/navigation"
+import { AuthLayout } from "@/components/auth/AuthLayout"
 
 const schema = z.object({
   phone: z.string().regex(/^\d{10}$/, "เบอร์โทรต้องเป็นตัวเลข 10 หลัก"),
@@ -50,7 +51,7 @@ export default function LoginPage() {
       localStorage.setItem("access_token", res.data.accessToken)
       setUser(res.data.user)
       toast.success("เข้าสู่ระบบสำเร็จ")
-      router.push("/")
+      router.push(res.data.user.role === "admin" ? "/admin" : "/")
     } catch {
       toast.error("เบอร์โทรหรือรหัสผ่านไม่ถูกต้อง")
     }
@@ -87,7 +88,7 @@ export default function LoginPage() {
       localStorage.setItem("access_token", res.data.accessToken)
       setUser(res.data.user)
       toast.success("เข้าสู่ระบบสำเร็จ")
-      router.push("/")
+      router.push(res.data.user.role === "admin" ? "/admin" : "/")
     } catch {
       toast.error("รหัส OTP ไม่ถูกต้องหรือหมดอายุ")
     } finally {
@@ -96,8 +97,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
+    <AuthLayout>
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="w-14 h-14 bg-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-3">
@@ -279,7 +279,6 @@ export default function LoginPage() {
           ยังไม่มีบัญชี?{" "}
           <Link href="/register" className="text-primary-600 font-medium hover:underline">สมัครสมาชิก</Link>
         </p>
-      </div>
-    </div>
+    </AuthLayout>
   )
 }

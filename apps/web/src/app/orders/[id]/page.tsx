@@ -70,7 +70,7 @@ export default function OrderDetailPage() {
   return (
     <main className="min-h-screen bg-gray-50">
       <MainNav />
-      <div className="max-w-2xl mx-auto px-4 py-8 space-y-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-4">
         <div className="flex items-center gap-3">
           <button onClick={() => router.back()} className="p-2 text-gray-500 hover:bg-gray-100 rounded-lg">
             <ArrowLeft className="w-5 h-5" />
@@ -202,7 +202,7 @@ export default function OrderDetailPage() {
               <p className="font-medium text-gray-900">{order.deliveryAddress.name}</p>
               <p>{order.deliveryAddress.phone}</p>
               <p>{order.deliveryAddress.address}</p>
-              <p>{order.deliveryAddress.district}, {order.deliveryAddress.province} {order.deliveryAddress.zipCode}</p>
+              <p>{order.deliveryAddress.subdistrict ? `${order.deliveryAddress.subdistrict}, ` : ""}{order.deliveryAddress.district}, {order.deliveryAddress.province} {order.deliveryAddress.zipCode}</p>
             </div>
           </div>
         )}

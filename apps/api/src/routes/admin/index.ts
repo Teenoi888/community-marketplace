@@ -5,6 +5,7 @@ import { categories, users, products, communities, orders } from "../../db/schem
 import { eq, asc, count, ilike } from "drizzle-orm"
 import bcrypt from "bcryptjs"
 import { requireAdmin, requireAuth } from "../../middleware/auth.js"
+import { logAdminActivity } from "../../lib/adminLog.js"
 
 const categorySchema = z.object({
   slug:      z.string().min(2).regex(/^[a-z0-9_]+$/, "slug ใช้ได้เฉพาะ a-z 0-9 _"),
@@ -67,22 +68,29 @@ export async function adminRoutes(app: FastifyInstance) {
     })
 
     protectedRoutes.post("/categories", async (request, reply) => {
+      const { userId } = request.user as { userId: string }
       const body = categorySchema.parse(request.body)
       const [row] = await db.insert(categories).values(body).returning()
+      await logAdminActivity({ adminId: userId, action: "category.create", targetType: "category", targetId: row.id, details: { name: row.name, slug: row.slug } })
       return reply.code(201).send({ success: true, data: row })
     })
 
     protectedRoutes.patch("/categories/:id", async (request, reply) => {
+      const { userId } = request.user as { userId: string }
       const { id } = request.params as { id: string }
       const body = categorySchema.partial().parse(request.body)
       const [updated] = await db.update(categories).set(body).where(eq(categories.id, id)).returning()
       if (!updated) return reply.code(404).send({ success: false, error: "ไม่พบหมวดหมู่" })
+      await logAdminActivity({ adminId: userId, action: "category.update", targetType: "category", targetId: id, details: body })
       return { success: true, data: updated }
     })
 
     protectedRoutes.delete("/categories/:id", async (request, reply) => {
+      const { userId } = request.user as { userId: string }
       const { id } = request.params as { id: string }
+      const existing = await db.query.categories.findFirst({ where: eq(categories.id, id) })
       await db.delete(categories).where(eq(categories.id, id))
+      await logAdminActivity({ adminId: userId, action: "category.delete", targetType: "category", targetId: id, details: { name: existing?.name } })
       return { success: true }
     })
 
@@ -96,6 +104,7 @@ export async function adminRoutes(app: FastifyInstance) {
     })
 
     protectedRoutes.patch("/products/:id", async (request, reply) => {
+      const { userId } = request.user as { userId: string }
       const { id } = request.params as { id: string }
       const body = adminProductUpdateSchema.parse(request.body)
       const [updated] = await db.update(products)
@@ -103,12 +112,16 @@ export async function adminRoutes(app: FastifyInstance) {
         .where(eq(products.id, id))
         .returning()
       if (!updated) return reply.code(404).send({ success: false, error: "ไม่พบสินค้า" })
+      await logAdminActivity({ adminId: userId, action: "product.update", targetType: "product", targetId: id, details: body })
       return { success: true, data: updated }
     })
 
     protectedRoutes.delete("/products/:id", async (request, reply) => {
+      const { userId } = request.user as { userId: string }
       const { id } = request.params as { id: string }
+      const existing = await db.query.products.findFirst({ where: eq(products.id, id) })
       await db.delete(products).where(eq(products.id, id))
+      await logAdminActivity({ adminId: userId, action: "product.delete", targetType: "product", targetId: id, details: { name: existing?.name } })
       return { success: true }
     })
 
@@ -122,15 +135,18 @@ export async function adminRoutes(app: FastifyInstance) {
 
     // Set user role
     protectedRoutes.patch("/users/:id/role", async (request, reply) => {
+      const { userId } = request.user as { userId: string }
       const { id } = request.params as { id: string }
       const { role } = request.body as { role: "user" | "admin" }
       if (!["user", "admin"].includes(role)) return reply.code(400).send({ success: false, error: "role ไม่ถูกต้อง" })
       const [updated] = await db.update(users).set({ role }).where(eq(users.id, id)).returning()
+      await logAdminActivity({ adminId: userId, action: "user.role_change", targetType: "user", targetId: id, details: { name: updated?.name, newRole: role } })
       return { success: true, data: updated }
     })
 
     // Reset user password (admin only)
     protectedRoutes.patch("/users/:id/reset-password", async (request, reply) => {
+      const { userId } = request.user as { userId: string }
       const { id } = request.params as { id: string }
       const { newPassword } = request.body as { newPassword: string }
       if (!newPassword || newPassword.length < 6) {
@@ -139,6 +155,7 @@ export async function adminRoutes(app: FastifyInstance) {
       const passwordHash = await bcrypt.hash(newPassword, 12)
       const [updated] = await db.update(users).set({ passwordHash }).where(eq(users.id, id)).returning()
       if (!updated) return reply.code(404).send({ success: false, error: "ไม่พบ user" })
+      await logAdminActivity({ adminId: userId, action: "user.reset_password", targetType: "user", targetId: id, details: { name: updated.name } })
       return { success: true, message: "รีเซ็ตรหัสผ่านแล้ว" }
     })
 
@@ -151,6 +168,20 @@ export async function adminRoutes(app: FastifyInstance) {
         limit: 20,
       })
       return { success: true, data: rows.map(u => ({ ...u, passwordHash: undefined })) }
+    })
+
+    // Activity log — audit trail of admin actions
+    protectedRoutes.get("/activity-logs", async (request) => {
+      const { limit = "50" } = request.query as Record<string, string>
+      const rows = await db.query.adminActivityLogs.findMany({
+        orderBy: (t, { desc }) => [desc(t.createdAt)],
+        limit: Math.min(Number(limit), 200),
+        with: { admin: true },
+      })
+      return {
+        success: true,
+        data: rows.map(r => ({ ...r, admin: r.admin ? { id: r.admin.id, name: r.admin.name } : null })),
+      }
     })
   })
 }

@@ -7,6 +7,7 @@ import { Store, Mail, KeyRound, Lock, Eye, EyeOff, ArrowLeft } from "lucide-reac
 import { api } from "@/lib/api"
 import { useCooldown } from "@/lib/hooks/useCooldown"
 import { z } from "zod"
+import { AuthLayout } from "@/components/auth/AuthLayout"
 
 const emailSchema = z.string().email("อีเมลไม่ถูกต้อง")
 const passwordSchema = z.string().min(6, "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร")
@@ -74,8 +75,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
+    <AuthLayout>
         <div className="text-center mb-8">
           <div className="w-14 h-14 bg-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-3">
             <Store className="w-8 h-8 text-white" />
@@ -181,7 +181,6 @@ export default function ForgotPasswordPage() {
           <ArrowLeft className="w-3.5 h-3.5" />
           กลับไปหน้าเข้าสู่ระบบ
         </Link>
-      </div>
-    </div>
+    </AuthLayout>
   )
 }

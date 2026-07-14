@@ -1,8 +1,7 @@
 "use client"
 import { useEffect, useState } from "react"
-import Link from "next/link"
-import { ArrowLeft, Search, Shield, ShieldOff, KeyRound, Phone, User } from "lucide-react"
-import { MainNav } from "@/components/layout/MainNav"
+import { Search, Shield, ShieldOff, KeyRound, Phone, User } from "lucide-react"
+import { AdminLayout } from "@/components/admin/AdminLayout"
 import { api } from "@/lib/api"
 import { toast } from "sonner"
 
@@ -64,18 +63,8 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <MainNav />
-      <div className="max-w-4xl mx-auto px-4 py-8">
-
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-6">
-          <Link href="/admin" className="text-gray-400 hover:text-gray-700">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <h1 className="text-xl font-bold text-gray-900">จัดการผู้ใช้</h1>
-        </div>
-
+    <AdminLayout title="จัดการผู้ใช้">
+      <>
         {/* Search */}
         <form onSubmit={handleSearch} className="flex gap-2 mb-6">
           <div className="relative flex-1">
@@ -88,9 +77,9 @@ export default function AdminUsersPage() {
               type="tel"
             />
           </div>
-          <button type="submit" className="btn-primary px-5">ค้นหา</button>
+          <button type="submit" className="btn-primary px-5 text-sm">ค้นหา</button>
           {search && (
-            <button type="button" onClick={() => { setSearch(""); loadUsers() }} className="btn-outline px-4">
+            <button type="button" onClick={() => { setSearch(""); loadUsers() }} className="btn-outline px-4 text-sm">
               ล้าง
             </button>
           )}
@@ -106,16 +95,16 @@ export default function AdminUsersPage() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
-                  <th className="text-left px-4 py-3 text-gray-500 font-medium">ชื่อ</th>
-                  <th className="text-left px-4 py-3 text-gray-500 font-medium">เบอร์โทร</th>
-                  <th className="text-center px-4 py-3 text-gray-500 font-medium">Role</th>
-                  <th className="text-right px-4 py-3 text-gray-500 font-medium">จัดการ</th>
+                  <th className="text-left px-5 py-3.5 text-gray-500 font-medium">ชื่อ</th>
+                  <th className="text-left px-5 py-3.5 text-gray-500 font-medium">เบอร์โทร</th>
+                  <th className="text-center px-5 py-3.5 text-gray-500 font-medium">Role</th>
+                  <th className="text-right px-5 py-3.5 text-gray-500 font-medium">จัดการ</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {users.map(u => (
-                  <tr key={u.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3">
+                  <tr key={u.id} className="hover:bg-gray-50/60 transition-colors">
+                    <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2">
                         <div className="w-7 h-7 rounded-full bg-primary-100 flex items-center justify-center flex-shrink-0">
                           <User className="w-3.5 h-3.5 text-primary-600" />
@@ -123,20 +112,20 @@ export default function AdminUsersPage() {
                         <span className="font-medium text-gray-800">{u.name}</span>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-5 py-3.5">
                       <div className="flex items-center gap-1.5 text-gray-600">
                         <Phone className="w-3.5 h-3.5 text-gray-400" />
                         {u.phone || <span className="text-gray-300">—</span>}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-center">
+                    <td className="px-5 py-3.5 text-center">
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
                         u.role === "admin" ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-500"
                       }`}>
                         {u.role === "admin" ? "Admin" : "User"}
                       </span>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-5 py-3.5">
                       <div className="flex items-center gap-2 justify-end">
                         <button
                           onClick={() => { setResetTarget(u); setNewPassword("") }}
@@ -162,11 +151,13 @@ export default function AdminUsersPage() {
               </tbody>
             </table>
             {users.length === 0 && (
-              <div className="text-center py-12 text-gray-400">ไม่พบผู้ใช้</div>
+              <div className="text-center py-16 text-gray-400">
+                <User className="w-10 h-10 mx-auto mb-3 opacity-30" />
+                ไม่พบผู้ใช้
+              </div>
             )}
           </div>
         )}
-      </div>
 
       {/* Reset password modal */}
       {resetTarget && (
@@ -196,6 +187,7 @@ export default function AdminUsersPage() {
           </div>
         </div>
       )}
-    </main>
+      </>
+    </AdminLayout>
   )
 }

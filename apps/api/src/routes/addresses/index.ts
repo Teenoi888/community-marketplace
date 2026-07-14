@@ -12,6 +12,7 @@ const addressSchema = z.object({
   address:  z.string().min(5),
   province: z.string().min(2),
   district: z.string().min(2),
+  subdistrict: z.string().min(2),
   zipCode:  z.string().length(5),
   isDefault: z.boolean().default(false),
 })

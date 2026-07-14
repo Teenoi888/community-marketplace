@@ -1,4 +1,4 @@
-import { pgTable, text, uuid, integer, numeric, boolean, timestamp, jsonb, pgEnum } from "drizzle-orm/pg-core"
+import { pgTable, text, uuid, integer, numeric, boolean, timestamp, jsonb, pgEnum, doublePrecision } from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
 
 // Enums
@@ -62,6 +62,8 @@ export const communities = pgTable("communities", {
   province: text("province").notNull(),
   district: text("district").notNull(),
   subdistrict: text("subdistrict").notNull(),
+  lat: doublePrecision("lat"),
+  lng: doublePrecision("lng"),
   slug: text("slug").unique().notNull(),
   description: text("description"),
   logoUrl: text("logo_url"),
@@ -169,6 +171,16 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 })
 
+export const adminActivityLogs = pgTable("admin_activity_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  adminId: uuid("admin_id").references(() => users.id, { onDelete: "set null" }),
+  action: text("action").notNull(),
+  targetType: text("target_type").notNull(),
+  targetId: text("target_id"),
+  details: jsonb("details"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+})
+
 export const userAddresses = pgTable("user_addresses", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
@@ -178,6 +190,7 @@ export const userAddresses = pgTable("user_addresses", {
   address: text("address").notNull(),
   province: text("province").notNull(),
   district: text("district").notNull(),
+  subdistrict: text("subdistrict").default("").notNull(),
   zipCode: text("zip_code").notNull(),
   isDefault: boolean("is_default").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -197,6 +210,10 @@ export const userAddressesRelations = relations(userAddresses, ({ one }) => ({
 export const notificationsRelations = relations(notifications, ({ one }) => ({
   user: one(users, { fields: [notifications.userId], references: [users.id] }),
   order: one(orders, { fields: [notifications.orderId], references: [orders.id] }),
+}))
+
+export const adminActivityLogsRelations = relations(adminActivityLogs, ({ one }) => ({
+  admin: one(users, { fields: [adminActivityLogs.adminId], references: [users.id] }),
 }))
 
 export const communitiesRelations = relations(communities, ({ many }) => ({

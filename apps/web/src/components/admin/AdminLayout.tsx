@@ -1,14 +1,16 @@
 "use client"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { LayoutDashboard, Tag, Users, ShieldCheck, ExternalLink, LogOut } from "lucide-react"
+import { LayoutDashboard, Tag, Users, ShieldCheck, ExternalLink, LogOut, ScrollText, Package } from "lucide-react"
 import { useAuthStore } from "@/lib/store/auth"
 import { api } from "@/lib/api"
 
 const NAV_ITEMS = [
   { href: "/admin", label: "แดชบอร์ด", icon: LayoutDashboard },
   { href: "/admin/categories", label: "หมวดหมู่สินค้า", icon: Tag },
+  { href: "/admin/products", label: "สินค้าทุกร้าน", icon: Package },
   { href: "/admin/users", label: "ผู้ใช้", icon: Users },
+  { href: "/admin/activity-logs", label: "Log กิจกรรม", icon: ScrollText },
 ]
 
 export function AdminLayout({ title, children }: { title: string; children: React.ReactNode }) {
@@ -114,7 +116,9 @@ export function AdminLayout({ title, children }: { title: string; children: Reac
           })}
         </nav>
 
-        <main className="p-4 md:p-8">{children}</main>
+        <main className="p-4 md:p-8">
+          <div className="max-w-6xl mx-auto">{children}</div>
+        </main>
       </div>
     </div>
   )

@@ -12,6 +12,7 @@ import { FaFacebook } from "react-icons/fa"
 import { api } from "@/lib/api"
 import { useAuthStore } from "@/lib/store/auth"
 import { useRouter } from "next/navigation"
+import { AuthLayout } from "@/components/auth/AuthLayout"
 
 const schema = z.object({
   name: z.string().min(2, "ชื่อต้องมีอย่างน้อย 2 ตัวอักษร"),
@@ -55,8 +56,7 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
+    <AuthLayout>
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="w-14 h-14 bg-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-3">
@@ -193,7 +193,6 @@ export default function RegisterPage() {
           มีบัญชีแล้ว?{" "}
           <Link href="/login" className="text-primary-600 font-medium hover:underline">เข้าสู่ระบบ</Link>
         </p>
-      </div>
-    </div>
+    </AuthLayout>
   )
 }

@@ -1,6 +1,7 @@
 import { Suspense } from "react"
 import { MainNav } from "@/components/layout/MainNav"
 import { HeroSection } from "@/components/marketplace/HeroSection"
+import { PromoBanner } from "@/components/marketplace/PromoBanner"
 import { CommunityGrid } from "@/components/marketplace/CommunityGrid"
 import { ProductFeed } from "@/components/marketplace/ProductFeed"
 import { CategoryBar } from "@/components/marketplace/CategoryBar"
@@ -11,6 +12,8 @@ export default function HomePage() {
       <MainNav />
       <HeroSection />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
+        <PromoBanner />
+
         <section>
           <h2 className="text-xl font-bold text-gray-800 mb-4">ชุมชนแนะนำ</h2>
           <Suspense fallback={<div className="text-gray-400">กำลังโหลด...</div>}>
