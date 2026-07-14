@@ -60,7 +60,7 @@ export default function SellerOrdersPage() {
   return (
     <main className="min-h-screen bg-gray-50">
       <MainNav />
-      <div className="max-w-3xl mx-auto px-4 py-8">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center gap-3 mb-6">
           <Link href="/dashboard" className="text-gray-400 hover:text-gray-600"><ArrowLeft className="w-5 h-5" /></Link>
           <h1 className="text-xl font-bold text-gray-900">ออเดอร์ร้านฉัน</h1>

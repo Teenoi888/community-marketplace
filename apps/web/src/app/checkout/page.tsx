@@ -213,7 +213,7 @@ export default function CheckoutPage() {
   return (
     <main>
       <MainNav />
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">ที่อยู่จัดส่ง</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
