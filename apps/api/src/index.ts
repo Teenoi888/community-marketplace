@@ -18,6 +18,8 @@ import { paymentRoutes } from "./routes/payments/index.js"
 import { chatRoutes } from "./routes/chat/index.js"
 import { uploadRoutes } from "./routes/upload/index.js"
 import { lineRoutes } from "./routes/line/index.js"
+import { googleRoutes } from "./routes/google/index.js"
+import { facebookRoutes } from "./routes/facebook/index.js"
 import { trackingRoutes } from "./routes/tracking/index.js"
 import { addressRoutes } from "./routes/addresses/index.js"
 import { categoryRoutes } from "./routes/categories/index.js"
@@ -90,6 +92,8 @@ await app.register(paymentRoutes,   { prefix: "/api/payments" })
 await app.register(chatRoutes,      { prefix: "/api/chat" })
 await app.register(uploadRoutes,    { prefix: "/api/upload" })
 await app.register(lineRoutes,      { prefix: "/api/line" })
+await app.register(googleRoutes,    { prefix: "/api/google" })
+await app.register(facebookRoutes,  { prefix: "/api/facebook" })
 await app.register(trackingRoutes,  { prefix: "/api/tracking" })
 await app.register(addressRoutes,   { prefix: "/api/addresses" })
 await app.register(categoryRoutes,  { prefix: "/api/categories" })
