@@ -15,7 +15,8 @@ const STATUS_MAP: Record<string, { label: string; color: string }> = {
   cancelled:       { label: "ยกเลิก",      color: "text-red-600 bg-red-50" },
 }
 
-const LOGISTICS = ["ไปรษณีย์ไทย", "Kerry Express", "Flash Express", "J&T Express", "DHL", "อื่นๆ"]
+const LOGISTICS = ["ไปรษณีย์ไทย", "Kerry Express", "Flash Express", "J&T Express", "DHL", "ส่งผ่านชุมชน (LINE)", "อื่นๆ"]
+const LINE_COMMUNITY = "ส่งผ่านชุมชน (LINE)"
 
 function fmt(n: number) {
   return new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", minimumFractionDigits: 0 }).format(n)
@@ -25,7 +26,7 @@ export default function SellerOrdersPage() {
   const [orders, setOrders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [expanded, setExpanded] = useState<string | null>(null)
-  const [tracking, setTracking] = useState<Record<string, { number: string; provider: string }>>({})
+  const [tracking, setTracking] = useState<Record<string, { number: string; provider: string; note: string }>>({})
   const [saving, setSaving] = useState<string | null>(null)
 
   useEffect(() => {
@@ -45,15 +46,17 @@ export default function SellerOrdersPage() {
 
   async function saveTracking(orderId: string) {
     const t = tracking[orderId]
-    if (!t?.number || !t?.provider) return toast.error("กรุณากรอกข้อมูลให้ครบ")
+    const isLine = t?.provider === LINE_COMMUNITY
+    if (!isLine && (!t?.number || !t?.provider)) return toast.error("กรุณากรอกข้อมูลให้ครบ")
     setSaving(orderId)
     try {
       const r = await api.patch(`/orders/${orderId}/tracking`, {
-        trackingNumber: t.number,
+        trackingNumber: isLine ? `LINE-${Date.now()}` : t.number,
         logisticsProvider: t.provider,
+        note: t.note || undefined,
       })
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, ...r.data.data } : o))
-      toast.success("บันทึก tracking แล้ว!")
+      toast.success(isLine ? "แจ้งกลุ่ม LINE แล้ว! ไรเดอร์จะเห็นงาน" : "บันทึก tracking แล้ว!")
     } catch { toast.error("เกิดข้อผิดพลาด") } finally { setSaving(null) }
   }
 
@@ -78,7 +81,7 @@ export default function SellerOrdersPage() {
             {orders.map(order => {
               const s = STATUS_MAP[order.status] || STATUS_MAP.pending_payment
               const isOpen = expanded === order.id
-              const t = tracking[order.id] || { number: order.trackingNumber || "", provider: order.logisticsProvider || LOGISTICS[0] }
+              const t = tracking[order.id] || { number: order.trackingNumber || "", provider: order.logisticsProvider || LOGISTICS[0], note: "" }
 
               return (
                 <div key={order.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -136,26 +139,38 @@ export default function SellerOrdersPage() {
 
                       <div>
                         <p className="text-xs font-semibold text-gray-500 mb-2 flex items-center gap-1">
-                          <Truck className="w-3 h-3" /> กรอก Tracking Number
+                          <Truck className="w-3 h-3" /> การจัดส่ง
                         </p>
                         {order.trackingNumber && (
                           <p className="text-xs text-green-600 flex items-center gap-1 mb-2">
-                            <CheckCircle className="w-3 h-3" /> {order.logisticsProvider}: {order.trackingNumber}
+                            <CheckCircle className="w-3 h-3" />
+                            {order.logisticsProvider === LINE_COMMUNITY
+                              ? "แจ้งกลุ่ม LINE แล้ว"
+                              : `${order.logisticsProvider}: ${order.trackingNumber}`}
                           </p>
                         )}
-                        <div className="flex gap-2">
-                          <select value={t.provider}
-                            onChange={e => setTracking(prev => ({ ...prev, [order.id]: { ...t, provider: e.target.value } }))}
-                            className="input text-sm py-2 w-40 flex-shrink-0">
-                            {LOGISTICS.map(l => <option key={l} value={l}>{l}</option>)}
-                          </select>
-                          <input value={t.number} placeholder="เลขพัสดุ"
-                            onChange={e => setTracking(prev => ({ ...prev, [order.id]: { ...t, number: e.target.value } }))}
-                            className="input text-sm py-2 flex-1" />
+                        <div className="space-y-2">
+                          <div className="flex gap-2">
+                            <select value={t.provider}
+                              onChange={e => setTracking(prev => ({ ...prev, [order.id]: { ...t, provider: e.target.value } }))}
+                              className="input text-sm py-2 w-44 flex-shrink-0">
+                              {LOGISTICS.map(l => <option key={l} value={l}>{l}</option>)}
+                            </select>
+                            {t.provider !== LINE_COMMUNITY && (
+                              <input value={t.number} placeholder="เลขพัสดุ"
+                                onChange={e => setTracking(prev => ({ ...prev, [order.id]: { ...t, number: e.target.value } }))}
+                                className="input text-sm py-2 flex-1" />
+                            )}
+                          </div>
+                          {t.provider === LINE_COMMUNITY && (
+                            <input value={t.note} placeholder="หมายเหตุ / จุดรับสินค้า (ไม่บังคับ)"
+                              onChange={e => setTracking(prev => ({ ...prev, [order.id]: { ...t, note: e.target.value } }))}
+                              className="input text-sm py-2 w-full" />
+                          )}
                           <button onClick={() => saveTracking(order.id)}
                             disabled={saving === order.id}
-                            className="btn-primary text-sm px-4 py-2 flex-shrink-0">
-                            {saving === order.id ? "..." : "บันทึก"}
+                            className="btn-primary text-sm px-4 py-2 w-full">
+                            {saving === order.id ? "กำลังส่ง..." : t.provider === LINE_COMMUNITY ? "📲 แจ้งกลุ่ม LINE" : "บันทึก Tracking"}
                           </button>
                         </div>
                       </div>
