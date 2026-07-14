@@ -318,27 +318,33 @@ export default function CheckoutPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">จังหวัด *</label>
-                        <select
-                          value={form.province}
-                          onChange={onProvinceChange}
-                          className={`input ${formErrors.province ? "border-red-400" : ""}`}
-                        >
-                          <option value="">-- เลือกจังหวัด --</option>
-                          {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
-                        </select>
+                        <div className="relative">
+                          <select
+                            value={form.province}
+                            onChange={onProvinceChange}
+                            className={`input appearance-none pr-9 ${formErrors.province ? "border-red-400" : ""}`}
+                          >
+                            <option value="">-- เลือกจังหวัด --</option>
+                            {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
+                          </select>
+                          <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        </div>
                         {formErrors.province && <p className="text-red-500 text-xs mt-1">{formErrors.province}</p>}
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">อำเภอ/เขต *</label>
-                        <select
-                          value={form.district}
-                          onChange={onDistrictChange}
-                          className={`input ${formErrors.district ? "border-red-400" : ""}`}
-                          disabled={!form.province}
-                        >
-                          <option value="">{form.province ? "-- เลือกอำเภอ/เขต --" : "เลือกจังหวัดก่อน"}</option>
-                          {districts.map(d => <option key={d.name} value={d.name}>{d.name}</option>)}
-                        </select>
+                        <div className="relative">
+                          <select
+                            value={form.district}
+                            onChange={onDistrictChange}
+                            className={`input appearance-none pr-9 ${formErrors.district ? "border-red-400" : ""}`}
+                            disabled={!form.province}
+                          >
+                            <option value="">{form.province ? "-- เลือกอำเภอ/เขต --" : "เลือกจังหวัดก่อน"}</option>
+                            {districts.map(d => <option key={d.name} value={d.name}>{d.name}</option>)}
+                          </select>
+                          <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                        </div>
                         {formErrors.district && <p className="text-red-500 text-xs mt-1">{formErrors.district}</p>}
                       </div>
                       <div>

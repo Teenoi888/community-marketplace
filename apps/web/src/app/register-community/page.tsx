@@ -7,7 +7,7 @@ import { z } from "zod"
 import { toast } from "sonner"
 import { MainNav } from "@/components/layout/MainNav"
 import { api } from "@/lib/api"
-import { Upload, CheckCircle } from "lucide-react"
+import { Upload, CheckCircle, ChevronDown } from "lucide-react"
 import Image from "next/image"
 
 const PROVINCES = ["กรุงเทพมหานคร","เชียงใหม่","เชียงราย","ลำพูน","ลำปาง","นครราชสีมา","ขอนแก่น","อุดรธานี","นครสวรรค์","พิษณุโลก","ระยอง","ชลบุรี","สุราษฎร์ธานี","นครศรีธรรมราช","สงขลา","ภูเก็ต","กระบี่"]
@@ -165,10 +165,13 @@ export default function RegisterCommunityPage() {
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">จังหวัด *</label>
-                <select {...register("province")} className="input">
-                  <option value="">เลือกจังหวัด</option>
-                  {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
-                </select>
+                <div className="relative">
+                  <select {...register("province")} className="input appearance-none pr-9">
+                    <option value="">เลือกจังหวัด</option>
+                    {PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                  <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
                 {errors.province && <p className="text-red-500 text-xs mt-1">{errors.province.message}</p>}
               </div>
               <div>
