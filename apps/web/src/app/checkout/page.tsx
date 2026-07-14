@@ -106,7 +106,7 @@ export default function CheckoutPage() {
   function validateForm(): boolean {
     const errs: Partial<Record<keyof FormState, string>> = {}
     if (!form.name || form.name.trim().length < 2)    errs.name = "กรุณากรอกชื่อ-นามสกุล"
-    if (!form.phone || form.phone.trim().length < 9)  errs.phone = "เบอร์โทรไม่ถูกต้อง"
+    if (!form.phone || form.phone.length !== 10)      errs.phone = "กรุณากรอกเบอร์โทร 10 หลัก"
     if (!form.address || form.address.trim().length < 5) errs.address = "กรุณากรอกที่อยู่"
     if (!form.province)                               errs.province = "กรุณาเลือกจังหวัด"
     if (!form.district)                               errs.district = "กรุณาเลือกอำเภอ/เขต"
@@ -213,7 +213,7 @@ export default function CheckoutPage() {
   return (
     <main>
       <MainNav />
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-6">ที่อยู่จัดส่ง</h1>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -305,10 +305,11 @@ export default function CheckoutPage() {
                         <label className="block text-sm font-medium text-gray-700 mb-1">เบอร์โทรศัพท์ *</label>
                         <input
                           value={form.phone}
-                          onChange={e => setField("phone", e.target.value)}
+                          onChange={e => setField("phone", e.target.value.replace(/\D/g, "").slice(0, 10))}
                           className={`input ${formErrors.phone ? "border-red-400" : ""}`}
                           placeholder="0812345678"
                           type="tel"
+                          inputMode="numeric"
                         />
                         {formErrors.phone && <p className="text-red-500 text-xs mt-1">{formErrors.phone}</p>}
                       </div>

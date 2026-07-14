@@ -93,7 +93,7 @@ export default function RegisterCommunityPage() {
   return (
     <main>
       <MainNav />
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <h1 className="text-2xl font-bold text-gray-900 mb-2">🏘️ ลงทะเบียนชุมชน</h1>
         <p className="text-gray-500 mb-8">เปิดร้านค้าออนไลน์ให้ชุมชนของคุณ ฟรี ไม่มี GP</p>
 
