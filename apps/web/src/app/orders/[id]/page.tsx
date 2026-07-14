@@ -202,7 +202,7 @@ export default function OrderDetailPage() {
               <p className="font-medium text-gray-900">{order.deliveryAddress.name}</p>
               <p>{order.deliveryAddress.phone}</p>
               <p>{order.deliveryAddress.address}</p>
-              <p>{order.deliveryAddress.district}, {order.deliveryAddress.province} {order.deliveryAddress.zipCode}</p>
+              <p>{order.deliveryAddress.subdistrict ? `${order.deliveryAddress.subdistrict}, ` : ""}{order.deliveryAddress.district}, {order.deliveryAddress.province} {order.deliveryAddress.zipCode}</p>
             </div>
           </div>
         )}

@@ -4,6 +4,7 @@ import { db } from "../../db/index.js"
 import { products, shops, communities } from "../../db/schema.js"
 import { eq, ilike, and } from "drizzle-orm"
 import { requireAuth } from "../../middleware/auth.js"
+import { haversineDistanceKm } from "../../lib/geo.js"
 
 const createProductSchema = z.object({
   shopId: z.string().uuid(),
@@ -19,9 +20,10 @@ export async function productRoutes(app: FastifyInstance) {
 
   // List products (marketplace or seller=me)
   app.get("/", async (request) => {
-    const { category, communityId, search, seller, limit = "20", page = "1" } = request.query as Record<string, string>
+    const { category, communityId, search, seller, lat, lng, maxDistanceKm, limit = "20", page = "1" } = request.query as Record<string, string>
     const limitN = Math.min(Number(limit), 50)
     const offset = (Number(page) - 1) * limitN
+    const origin = lat && lng ? { lat: Number(lat), lng: Number(lng) } : null
 
     // If seller=me, return products from ALL shops the user owns
     if (seller === "me") {
@@ -46,12 +48,34 @@ export async function productRoutes(app: FastifyInstance) {
       }
     }
 
+    const where = and(
+      search ? ilike(products.name, `%${search}%`) : undefined,
+      category ? eq(products.category, category) : undefined,
+      eq(products.status, "active"),
+    )
+
+    // "Near me" sorting requires distance computed per-row, so page in JS
+    // instead of at the DB level when an origin point is given.
+    if (origin) {
+      const all = await db.query.products.findMany({
+        where,
+        with: { shop: { with: { community: true } } },
+      })
+
+      const withDistance = all
+        .filter(p => p.shop.community?.lat != null && p.shop.community?.lng != null)
+        .map(p => ({
+          ...p,
+          distanceKm: haversineDistanceKm(origin, { lat: p.shop.community!.lat!, lng: p.shop.community!.lng! }),
+        }))
+        .filter(p => !maxDistanceKm || p.distanceKm <= Number(maxDistanceKm))
+        .sort((a, b) => a.distanceKm - b.distanceKm)
+
+      return { success: true, data: withDistance.slice(offset, offset + limitN) }
+    }
+
     const rows = await db.query.products.findMany({
-      where: and(
-        search ? ilike(products.name, `%${search}%`) : undefined,
-        category ? eq(products.category, category) : undefined,
-        eq(products.status, "active"),
-      ),
+      where,
       with: { shop: { with: { community: true } } },
       limit: limitN,
       offset,
