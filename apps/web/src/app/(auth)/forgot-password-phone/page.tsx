@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { Store, Phone, ArrowLeft, KeyRound } from "lucide-react"
 import { toast } from "sonner"
 import { api } from "@/lib/api"
+import { AuthLayout } from "@/components/auth/AuthLayout"
 
 export default function ForgotPasswordPhonePage() {
   const router = useRouter()
@@ -14,7 +15,7 @@ export default function ForgotPasswordPhonePage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (phone.length < 9) return toast.error("กรุณากรอกเบอร์โทรให้ถูกต้อง")
+    if (phone.length !== 10) return toast.error("กรุณากรอกเบอร์โทรให้ถูกต้อง")
 
     setLoading(true)
     try {
@@ -34,9 +35,7 @@ export default function ForgotPasswordPhonePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-
+    <AuthLayout>
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="w-14 h-14 bg-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-3">
@@ -72,8 +71,9 @@ export default function ForgotPasswordPhonePage() {
                 <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="tel"
+                  inputMode="numeric"
                   value={phone}
-                  onChange={e => setPhone(e.target.value)}
+                  onChange={e => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
                   placeholder="0812345678"
                   className="input pl-9"
                   maxLength={10}
@@ -81,7 +81,7 @@ export default function ForgotPasswordPhonePage() {
               </div>
             </div>
 
-            <button type="submit" disabled={loading || phone.length < 9} className="btn-primary w-full py-3">
+            <button type="submit" disabled={loading || phone.length !== 10} className="btn-primary w-full py-3">
               {loading ? "กำลังส่ง OTP..." : "ขอรหัส OTP"}
             </button>
           </form>
@@ -92,7 +92,6 @@ export default function ForgotPasswordPhonePage() {
             <ArrowLeft className="w-4 h-4" /> กลับหน้าเข้าสู่ระบบ
           </Link>
         </div>
-      </div>
-    </div>
+    </AuthLayout>
   )
 }
