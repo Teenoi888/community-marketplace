@@ -136,7 +136,7 @@ export default function MyCommunityPage() {
         )}
       </div>
 
-      <div className="max-w-3xl mx-auto px-4">
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Logo + Header */}
         <div className="relative -mt-16 mb-6 flex items-end gap-4">
           <div className="relative w-28 h-28 rounded-2xl border-4 border-white bg-white shadow-lg overflow-hidden flex-shrink-0">
