@@ -19,6 +19,8 @@ export interface Community {
   province: string
   district: string
   subdistrict: string
+  lat?: number | null
+  lng?: number | null
   slug: string
   description?: string
   logoUrl?: string
@@ -71,6 +73,7 @@ export interface Product {
 
 export interface ProductWithShop extends Product {
   shop: Shop & { community: Community }
+  distanceKm?: number
 }
 
 // ==================== ORDER ====================
@@ -154,6 +157,7 @@ export interface Address {
   phone: string
   address: string
   district: string
+  subdistrict: string
   province: string
   zipCode: string
 }

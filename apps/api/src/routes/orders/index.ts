@@ -26,6 +26,7 @@ const createOrderSchema = z.object({
     phone: z.string(),
     address: z.string(),
     district: z.string(),
+    subdistrict: z.string(),
     province: z.string(),
     zipCode: z.string(),
   }),

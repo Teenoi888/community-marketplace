@@ -113,7 +113,7 @@ export default function SellerOrdersPage() {
                           <p className="text-xs font-semibold text-gray-500 mb-1">ที่อยู่จัดส่ง</p>
                           <p className="text-sm text-gray-600">
                             {order.deliveryAddress.name} · {order.deliveryAddress.phone}<br />
-                            {order.deliveryAddress.address}, {order.deliveryAddress.district}, {order.deliveryAddress.province} {order.deliveryAddress.zipCode}
+                            {order.deliveryAddress.address}, {order.deliveryAddress.subdistrict ? `${order.deliveryAddress.subdistrict}, ` : ""}{order.deliveryAddress.district}, {order.deliveryAddress.province} {order.deliveryAddress.zipCode}
                           </p>
                         </div>
                       )}

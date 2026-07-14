@@ -1,4 +1,4 @@
-import { pgTable, text, uuid, integer, numeric, boolean, timestamp, jsonb, pgEnum } from "drizzle-orm/pg-core"
+import { pgTable, text, uuid, integer, numeric, boolean, timestamp, jsonb, pgEnum, doublePrecision } from "drizzle-orm/pg-core"
 import { relations } from "drizzle-orm"
 
 // Enums
@@ -62,6 +62,8 @@ export const communities = pgTable("communities", {
   province: text("province").notNull(),
   district: text("district").notNull(),
   subdistrict: text("subdistrict").notNull(),
+  lat: doublePrecision("lat"),
+  lng: doublePrecision("lng"),
   slug: text("slug").unique().notNull(),
   description: text("description"),
   logoUrl: text("logo_url"),
@@ -188,6 +190,7 @@ export const userAddresses = pgTable("user_addresses", {
   address: text("address").notNull(),
   province: text("province").notNull(),
   district: text("district").notNull(),
+  subdistrict: text("subdistrict").default("").notNull(),
   zipCode: text("zip_code").notNull(),
   isDefault: boolean("is_default").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
