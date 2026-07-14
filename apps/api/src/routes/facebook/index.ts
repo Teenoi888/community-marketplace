@@ -39,6 +39,15 @@ export async function facebookRoutes(app: FastifyInstance) {
     const { id: facebookId, name, email, picture } = profileRes.data
 
     let user = await db.query.users.findFirst({ where: eq(users.facebookId, facebookId) })
+    if (!user && email) {
+      // Link to an existing account with the same email (e.g. registered by phone/password
+      // or another provider) instead of crashing on the unique email constraint.
+      const existing = await db.query.users.findFirst({ where: eq(users.email, email) })
+      if (existing) {
+        const [linked] = await db.update(users).set({ facebookId }).where(eq(users.id, existing.id)).returning()
+        user = linked
+      }
+    }
     if (!user) {
       const [created] = await db.insert(users).values({
         name,
