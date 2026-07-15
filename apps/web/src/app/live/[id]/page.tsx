@@ -63,9 +63,18 @@ export default function ViewerPage() {
     const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] })
     pcRef.current = pc
 
+    // Create MediaStream upfront — desktop Chrome sometimes has empty e.streams[0]
+    const remoteStream = new MediaStream()
+    if (remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = remoteStream
+    }
+
     pc.ontrack = (e) => {
-      if (remoteVideoRef.current && e.streams[0]) {
-        remoteVideoRef.current.srcObject = e.streams[0]
+      if (e.streams && e.streams[0]) {
+        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = e.streams[0]
+      } else {
+        remoteStream.addTrack(e.track)
+        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream
       }
     }
 
