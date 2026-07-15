@@ -36,6 +36,7 @@ export default function ViewerPage() {
   const [pinnedProducts, setPinnedProducts] = useState<PinnedProduct[]>([])
   const [isMuted, setIsMuted] = useState(true)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [iceState, setIceState] = useState<string>("connecting")
   const chatEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }) }, [chat])
@@ -62,11 +63,23 @@ export default function ViewerPage() {
   useEffect(() => {
     if (ended) return
 
-    const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] })
+    const pc = new RTCPeerConnection({
+      iceServers: [
+        { urls: "stun:stun.l.google.com:19302" },
+        { urls: "stun:stun1.l.google.com:19302" },
+        { urls: "stun:stun2.l.google.com:19302" },
+        { urls: "stun:stun3.l.google.com:19302" },
+      ]
+    })
     pcRef.current = pc
+    setIceState("connecting")
 
     // Create MediaStream upfront — desktop Chrome sometimes has empty e.streams[0]
     const remoteStream = new MediaStream()
+
+    pc.oniceconnectionstatechange = () => {
+      setIceState(pc.iceConnectionState)
+    }
 
     pc.ontrack = (e) => {
       const video = remoteVideoRef.current
@@ -92,11 +105,13 @@ export default function ViewerPage() {
     wsRef.current = ws
 
     ws.onopen = () => {
+      // Use getState() so this effect doesn't re-run when user changes
+      const u = useAuthStore.getState().user
       ws.send(JSON.stringify({
         type: "viewer",
         viewerId: viewerIdRef.current,
-        userId: user?.id || "",
-        userName: user?.name || "ผู้ชม",
+        userId: u?.id || "",
+        userName: u?.name || "ผู้ชม",
       }))
     }
 
@@ -142,7 +157,7 @@ export default function ViewerPage() {
       ws.close()
       pc.close()
     }
-  }, [id, user, ended])
+  }, [id, ended])   // ไม่ใส่ user — ใช้ getState() ใน onopen แทน เพื่อป้องกัน re-connect 2 รอบ
 
   function sendChat() {
     if (!chatInput.trim() || !wsRef.current) return
@@ -179,6 +194,31 @@ export default function ViewerPage() {
       {/* Video */}
       <div className="flex-1 relative bg-black flex items-center justify-center">
         <video ref={remoteVideoRef} autoPlay playsInline muted className="w-full h-full object-cover max-h-[60vh] md:max-h-screen" />
+
+        {/* ICE connecting overlay */}
+        {!isPlaying && iceState !== "failed" && iceState !== "disconnected" && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/70 z-10">
+            <div className="flex flex-col items-center gap-3">
+              <div className="w-8 h-8 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <span className="text-white text-sm">กำลังเชื่อมต่อ...</span>
+            </div>
+          </div>
+        )}
+
+        {/* ICE failed overlay */}
+        {(iceState === "failed" || iceState === "disconnected") && !isPlaying && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-10">
+            <div className="flex flex-col items-center gap-3 text-center px-6">
+              <span className="text-white text-sm">ไม่สามารถเชื่อมต่อวิดีโอได้</span>
+              <button
+                onClick={() => window.location.reload()}
+                className="bg-primary-600 hover:bg-primary-500 text-white text-sm px-4 py-2 rounded-lg"
+              >
+                ลองใหม่
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Unmute button — always muted on start so autoplay works */}
         {isPlaying && (
