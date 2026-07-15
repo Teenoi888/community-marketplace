@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { api } from "@/lib/api"
 import { useAuthStore } from "@/lib/store/auth"
 import { useCartStore } from "@/lib/store/cart"
-import { Radio, Users, Send, ShoppingCart, Pin, ArrowLeft, Play } from "lucide-react"
+import { Radio, Users, Send, ShoppingCart, Pin, ArrowLeft, Volume2, VolumeX } from "lucide-react"
 import { toast } from "sonner"
 import Link from "next/link"
 
@@ -34,7 +34,8 @@ export default function ViewerPage() {
   const [viewerCount, setViewerCount] = useState(0)
   const [ended, setEnded] = useState(false)
   const [pinnedProducts, setPinnedProducts] = useState<PinnedProduct[]>([])
-  const [needsPlay, setNeedsPlay] = useState(false)
+  const [isMuted, setIsMuted] = useState(true)
+  const [isPlaying, setIsPlaying] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }) }, [chat])
@@ -66,13 +67,6 @@ export default function ViewerPage() {
 
     // Create MediaStream upfront — desktop Chrome sometimes has empty e.streams[0]
     const remoteStream = new MediaStream()
-    if (remoteVideoRef.current) {
-      remoteVideoRef.current.srcObject = remoteStream
-    }
-
-    const tryPlay = (video: HTMLVideoElement) => {
-      video.play().then(() => setNeedsPlay(false)).catch(() => setNeedsPlay(true))
-    }
 
     pc.ontrack = (e) => {
       const video = remoteVideoRef.current
@@ -83,7 +77,9 @@ export default function ViewerPage() {
         remoteStream.addTrack(e.track)
         video.srcObject = remoteStream
       }
-      tryPlay(video)
+      // Start muted — Chrome allows muted autoplay on all platforms
+      video.muted = true
+      video.play().then(() => setIsPlaying(true)).catch(() => {})
     }
 
     pc.onicecandidate = (e) => {
@@ -182,22 +178,21 @@ export default function ViewerPage() {
     <div className="min-h-screen bg-gray-950 text-white flex flex-col md:flex-row">
       {/* Video */}
       <div className="flex-1 relative bg-black flex items-center justify-center">
-        <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover max-h-[60vh] md:max-h-screen" />
+        <video ref={remoteVideoRef} autoPlay playsInline muted className="w-full h-full object-cover max-h-[60vh] md:max-h-screen" />
 
-        {/* Click-to-play overlay — desktop autoplay may be blocked */}
-        {needsPlay && (
+        {/* Unmute button — always muted on start so autoplay works */}
+        {isPlaying && (
           <button
             onClick={() => {
               const video = remoteVideoRef.current
               if (!video) return
-              video.play().then(() => setNeedsPlay(false)).catch(() => {})
+              video.muted = !video.muted
+              setIsMuted(video.muted)
             }}
-            className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-10 gap-3"
+            className="absolute bottom-16 right-4 bg-black/60 hover:bg-black/80 text-white px-3 py-2 rounded-full flex items-center gap-2 text-sm transition-colors z-10"
           >
-            <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center">
-              <Play className="w-10 h-10 text-white fill-white" />
-            </div>
-            <span className="text-white text-sm font-medium">คลิกเพื่อดูไลฟ์</span>
+            {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+            {isMuted ? "เปิดเสียง" : "ปิดเสียง"}
           </button>
         )}
 
