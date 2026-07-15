@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 
 export async function GET() {
   const apiKey = process.env.METERED_API_KEY
+  const domain = process.env.METERED_DOMAIN || "chumchon.metered.live"
   const fallback = {
     iceServers: [
       { urls: "stun:stun.l.google.com:19302" },
@@ -13,7 +14,7 @@ export async function GET() {
 
   try {
     const res = await fetch(
-      `https://openrelay.metered.ca/api/v1/turn/credentials?apiKey=${apiKey}`,
+      `https://${domain}/api/v1/turn/credentials?apiKey=${apiKey}`,
       { next: { revalidate: 3600 } }
     )
     if (!res.ok) return NextResponse.json(fallback)
