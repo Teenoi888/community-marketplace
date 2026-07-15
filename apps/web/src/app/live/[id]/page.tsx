@@ -63,98 +63,100 @@ export default function ViewerPage() {
   useEffect(() => {
     if (ended) return
 
-    const pc = new RTCPeerConnection({
-      iceServers: [
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" },
-        { urls: ["turn:openrelay.metered.ca:80", "turn:openrelay.metered.ca:443", "turn:openrelay.metered.ca:443?transport=tcp"], username: "openrelayproject", credential: "openrelayproject" },
-      ]
-    })
-    pcRef.current = pc
-    setIceState("connecting")
-
-    // Create MediaStream upfront — desktop Chrome sometimes has empty e.streams[0]
     const remoteStream = new MediaStream()
 
-    pc.oniceconnectionstatechange = () => {
-      setIceState(pc.iceConnectionState)
-    }
-
-    pc.ontrack = (e) => {
-      const video = remoteVideoRef.current
-      if (!video) return
-      if (e.streams && e.streams[0]) {
-        video.srcObject = e.streams[0]
-      } else {
-        remoteStream.addTrack(e.track)
-        video.srcObject = remoteStream
-      }
-      // Start muted — Chrome allows muted autoplay on all platforms
-      video.muted = true
-      video.play().then(() => setIsPlaying(true)).catch(() => {})
-    }
-
-    pc.onicecandidate = (e) => {
-      if (e.candidate && wsRef.current?.readyState === WebSocket.OPEN) {
-        wsRef.current.send(JSON.stringify({ type: "ice", isBroadcaster: false, viewerId: viewerIdRef.current, candidate: e.candidate }))
-      }
-    }
-
-    const ws = new WebSocket(`${WS_URL}/api/live/ws/${id}`)
-    wsRef.current = ws
-
-    ws.onopen = () => {
-      // Use getState() so this effect doesn't re-run when user changes
-      const u = useAuthStore.getState().user
-      ws.send(JSON.stringify({
-        type: "viewer",
-        viewerId: viewerIdRef.current,
-        userId: u?.id || "",
-        userName: u?.name || "ผู้ชม",
+    async function start() {
+      const data = await fetch("/api/turn-credentials").then(r => r.json()).catch(() => ({
+        iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
       }))
+      const { iceServers } = data
+
+      const pc = new RTCPeerConnection({ iceServers })
+      pcRef.current = pc
+      setIceState("connecting")
+
+      pc.oniceconnectionstatechange = () => {
+        setIceState(pc.iceConnectionState)
+      }
+
+      pc.ontrack = (e) => {
+        const video = remoteVideoRef.current
+        if (!video) return
+        if (e.streams && e.streams[0]) {
+          video.srcObject = e.streams[0]
+        } else {
+          remoteStream.addTrack(e.track)
+          video.srcObject = remoteStream
+        }
+        // Start muted — Chrome allows muted autoplay on all platforms
+        video.muted = true
+        video.play().then(() => setIsPlaying(true)).catch(() => {})
+      }
+
+      pc.onicecandidate = (e) => {
+        if (e.candidate && wsRef.current?.readyState === WebSocket.OPEN) {
+          wsRef.current.send(JSON.stringify({ type: "ice", isBroadcaster: false, viewerId: viewerIdRef.current, candidate: e.candidate }))
+        }
+      }
+
+      const ws = new WebSocket(`${WS_URL}/api/live/ws/${id}`)
+      wsRef.current = ws
+
+      ws.onopen = () => {
+        // Use getState() so this effect doesn't re-run when user changes
+        const u = useAuthStore.getState().user
+        ws.send(JSON.stringify({
+          type: "viewer",
+          viewerId: viewerIdRef.current,
+          userId: u?.id || "",
+          userName: u?.name || "ผู้ชม",
+        }))
+      }
+
+      ws.onmessage = async (e) => {
+        const msg = JSON.parse(e.data)
+
+        if (msg.type === "offer") {
+          await pc.setRemoteDescription(new RTCSessionDescription(msg.offer))
+          const answer = await pc.createAnswer()
+          await pc.setLocalDescription(answer)
+          ws.send(JSON.stringify({ type: "answer", answer, viewerId: viewerIdRef.current }))
+        }
+
+        else if (msg.type === "ice") {
+          if (msg.candidate) await pc.addIceCandidate(new RTCIceCandidate(msg.candidate))
+        }
+
+        else if (msg.type === "chat") {
+          setChat(prev => [...prev, msg])
+        }
+
+        else if (msg.type === "chat_history") {
+          setChat(msg.messages || [])
+        }
+
+        else if (msg.type === "pinned_products") {
+          await loadPinnedProducts(msg.productIds || [])
+        }
+
+        else if (msg.type === "viewer_joined") {
+          setViewerCount(msg.viewerCount)
+        }
+
+        else if (msg.type === "session_ended") {
+          setEnded(true)
+          toast.info("ไลฟ์สิ้นสุดแล้ว")
+        }
+      }
+
+      ws.onclose = () => {}
     }
 
-    ws.onmessage = async (e) => {
-      const msg = JSON.parse(e.data)
-
-      if (msg.type === "offer") {
-        await pc.setRemoteDescription(new RTCSessionDescription(msg.offer))
-        const answer = await pc.createAnswer()
-        await pc.setLocalDescription(answer)
-        ws.send(JSON.stringify({ type: "answer", answer, viewerId: viewerIdRef.current }))
-      }
-
-      else if (msg.type === "ice") {
-        if (msg.candidate) await pc.addIceCandidate(new RTCIceCandidate(msg.candidate))
-      }
-
-      else if (msg.type === "chat") {
-        setChat(prev => [...prev, msg])
-      }
-
-      else if (msg.type === "chat_history") {
-        setChat(msg.messages || [])
-      }
-
-      else if (msg.type === "pinned_products") {
-        await loadPinnedProducts(msg.productIds || [])
-      }
-
-      else if (msg.type === "viewer_joined") {
-        setViewerCount(msg.viewerCount)
-      }
-
-      else if (msg.type === "session_ended") {
-        setEnded(true)
-        toast.info("ไลฟ์สิ้นสุดแล้ว")
-      }
-    }
-
-    ws.onclose = () => {}
+    start()
 
     return () => {
-      ws.close()
-      pc.close()
+      wsRef.current?.close()
+      pcRef.current?.close()
     }
   }, [id, ended])   // ไม่ใส่ user — ใช้ getState() ใน onopen แทน เพื่อป้องกัน re-connect 2 รอบ
 
