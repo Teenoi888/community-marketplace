@@ -5,6 +5,9 @@ import { products, shops, communities } from "../../db/schema.js"
 import { eq, ilike, and } from "drizzle-orm"
 import { requireAuth } from "../../middleware/auth.js"
 import { haversineDistanceKm } from "../../lib/geo.js"
+import postgres from "postgres"
+
+const sql = postgres(process.env.DATABASE_URL!, { max: 1 })
 
 const createProductSchema = z.object({
   shopId: z.string().uuid(),
@@ -82,6 +85,99 @@ export async function productRoutes(app: FastifyInstance) {
     })
 
     return { success: true, data: rows }
+  })
+
+  // GET /products/recommendations/home — popular products for homepage (most ordered + reviewed)
+  app.get("/recommendations/home", async () => {
+    const rows = await sql`
+      SELECT
+        p.id, p.name, p.price, p.images, p.stock, p.category,
+        p.shop_id,
+        s.name AS shop_name, s.id AS shop_id_val,
+        c.name AS community_name, c.slug AS community_slug,
+        c.province, c.district,
+        COUNT(DISTINCT oi.id)::int AS order_count,
+        COUNT(DISTINCT r.id)::int AS review_count,
+        ROUND(AVG(r.rating)::numeric, 1) AS avg_rating
+      FROM products p
+      JOIN shops s ON s.id = p.shop_id
+      JOIN communities c ON c.id = s.community_id
+      LEFT JOIN order_items oi ON oi.product_id = p.id
+      LEFT JOIN reviews r ON r.product_id = p.id
+      WHERE p.status = 'active' AND p.stock > 0
+      GROUP BY p.id, s.name, s.id, c.name, c.slug, c.province, c.district
+      ORDER BY (COUNT(DISTINCT oi.id) * 2 + COUNT(DISTINCT r.id)) DESC
+      LIMIT 10
+    `
+    const data = rows.map(r => ({
+      id: r.id,
+      name: r.name,
+      price: r.price,
+      images: r.images || [],
+      stock: r.stock,
+      category: r.category,
+      orderCount: r.order_count,
+      reviewCount: r.review_count,
+      avgRating: Number(r.avg_rating || 0),
+      shop: {
+        id: r.shop_id_val,
+        name: r.shop_name,
+        community: { name: r.community_name, slug: r.community_slug, province: r.province, district: r.district },
+      },
+    }))
+    return { success: true, data }
+  })
+
+  // GET /products/recommendations/:id — same-category products (excluding current, same community first)
+  app.get("/recommendations/:id", async (request) => {
+    const { id } = request.params as { id: string }
+
+    // Get the product to know its category and community
+    const base = await sql`
+      SELECT p.category, s.community_id
+      FROM products p JOIN shops s ON s.id = p.shop_id
+      WHERE p.id = ${id}
+      LIMIT 1
+    `
+    if (!base.length) return { success: true, data: [] }
+    const { category, community_id } = base[0]
+
+    const rows = await sql`
+      SELECT
+        p.id, p.name, p.price, p.images, p.stock, p.category,
+        s.id AS shop_id, s.name AS shop_name,
+        c.name AS community_name, c.slug AS community_slug, c.province, c.district,
+        COUNT(DISTINCT r.id)::int AS review_count,
+        ROUND(AVG(r.rating)::numeric, 1) AS avg_rating,
+        CASE WHEN s.community_id = ${community_id} THEN 1 ELSE 0 END AS same_community
+      FROM products p
+      JOIN shops s ON s.id = p.shop_id
+      JOIN communities c ON c.id = s.community_id
+      LEFT JOIN reviews r ON r.product_id = p.id
+      WHERE p.status = 'active'
+        AND p.stock > 0
+        AND p.category = ${category}
+        AND p.id != ${id}
+      GROUP BY p.id, s.id, s.name, s.community_id, c.name, c.slug, c.province, c.district
+      ORDER BY same_community DESC, review_count DESC
+      LIMIT 8
+    `
+    const data = rows.map(r => ({
+      id: r.id,
+      name: r.name,
+      price: r.price,
+      images: r.images || [],
+      stock: r.stock,
+      category: r.category,
+      reviewCount: r.review_count,
+      avgRating: Number(r.avg_rating || 0),
+      shop: {
+        id: r.shop_id,
+        name: r.shop_name,
+        community: { name: r.community_name, slug: r.community_slug, province: r.province, district: r.district },
+      },
+    }))
+    return { success: true, data }
   })
 
   // Get product by id
