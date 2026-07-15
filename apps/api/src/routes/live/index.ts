@@ -116,7 +116,7 @@ export async function liveRoutes(app: FastifyInstance) {
         else if (msg.type === "viewer") {
           role = "viewer"
           viewerId = msg.viewerId || crypto.randomUUID()
-          session.viewers.set(viewerId, { ws, userId: msg.userId || "", userName: msg.userName || "ผู้ชม" })
+          session.viewers.set(viewerId as string, { ws, userId: msg.userId || "", userName: msg.userName || "ผู้ชม" })
           const count = session.viewers.size
           sql`UPDATE live_sessions SET viewer_count=${count} WHERE id=${id}`.catch(() => {})
           ws.send(JSON.stringify({ type: "chat_history", messages: session.chatHistory }))
