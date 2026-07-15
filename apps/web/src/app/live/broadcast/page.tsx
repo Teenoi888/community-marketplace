@@ -41,8 +41,14 @@ function BroadcastContent() {
   // Scroll chat to bottom
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }) }, [chat])
 
+  const ICE_SERVERS = [
+    { urls: "stun:stun.l.google.com:19302" },
+    { urls: "stun:stun1.l.google.com:19302" },
+    { urls: ["turn:openrelay.metered.ca:80", "turn:openrelay.metered.ca:443", "turn:openrelay.metered.ca:443?transport=tcp"], username: "openrelayproject", credential: "openrelayproject" },
+  ]
+
   const createPeer = useCallback((viewerId: string) => {
-    const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] })
+    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS })
     streamRef.current?.getTracks().forEach(t => pc.addTrack(t, streamRef.current!))
     pc.onicecandidate = (e) => {
       if (e.candidate && wsRef.current?.readyState === WebSocket.OPEN) {
