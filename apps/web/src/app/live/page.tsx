@@ -1,4 +1,5 @@
 "use client"
+// live streaming list page
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
