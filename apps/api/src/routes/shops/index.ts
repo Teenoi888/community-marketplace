@@ -9,6 +9,41 @@ const sql = postgres(process.env.DATABASE_URL!, { max: 1 })
 
 export async function shopRoutes(app: FastifyInstance) {
 
+  // GET /shops/:shopId/rating — aggregate rating from all product reviews in a shop (public)
+  app.get("/:shopId/rating", async (request, reply) => {
+    const { shopId } = request.params as { shopId: string }
+
+    const agg = await sql`
+      SELECT
+        ROUND(AVG(r.rating)::numeric, 1) AS avg_rating,
+        COUNT(r.id)::int AS total_reviews
+      FROM reviews r
+      JOIN products p ON p.id = r.product_id
+      WHERE p.shop_id = ${shopId}
+    `
+
+    const recent = await sql`
+      SELECT r.id, r.rating, r.comment, r.created_at,
+             u.name AS user_name, u.avatar_url,
+             p.name AS product_name
+      FROM reviews r
+      JOIN users u ON u.id = r.user_id
+      JOIN products p ON p.id = r.product_id
+      WHERE p.shop_id = ${shopId}
+      ORDER BY r.created_at DESC
+      LIMIT 5
+    `
+
+    return {
+      success: true,
+      data: {
+        avgRating: Number(agg[0]?.avg_rating || 0),
+        totalReviews: Number(agg[0]?.total_reviews || 0),
+        recentReviews: recent,
+      },
+    }
+  })
+
   // GET /shops/my — get current seller's shop settings
   app.get("/my", { preHandler: [requireAuth] }, async (request, reply) => {
     const { userId } = request.user as { userId: string }
