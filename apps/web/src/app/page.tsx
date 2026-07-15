@@ -5,6 +5,7 @@ import { PromoBanner } from "@/components/marketplace/PromoBanner"
 import { CommunityGrid } from "@/components/marketplace/CommunityGrid"
 import { ProductFeed } from "@/components/marketplace/ProductFeed"
 import { CategoryBar } from "@/components/marketplace/CategoryBar"
+import { LiveRow } from "@/components/marketplace/LiveRow"
 
 export default function HomePage() {
   return (
@@ -12,6 +13,7 @@ export default function HomePage() {
       <MainNav />
       <HeroSection />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
+        <LiveRow />
         <PromoBanner />
 
         <section>
