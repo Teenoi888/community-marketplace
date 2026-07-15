@@ -63,13 +63,10 @@ export default function ViewerPage() {
   useEffect(() => {
     if (ended) return
 
-    const pc = new RTCPeerConnection({
-      iceServers: [
-        { urls: "stun:stun.l.google.com:19302" },
-        { urls: "stun:stun1.l.google.com:19302" },
-        { urls: ["turn:openrelay.metered.ca:80", "turn:openrelay.metered.ca:443", "turn:openrelay.metered.ca:443?transport=tcp"], username: "openrelayproject", credential: "openrelayproject" },
-      ]
-    })
+    const { iceServers } = await fetch("/api/turn-credentials").then(r => r.json()).catch(() => ({
+      iceServers: [{ urls: "stun:stun.l.google.com:19302" }]
+    }))
+    const pc = new RTCPeerConnection({ iceServers })
     pcRef.current = pc
     setIceState("connecting")
 
