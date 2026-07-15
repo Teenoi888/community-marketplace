@@ -5,6 +5,24 @@ import { orders, orderItems, products, shops } from "../../db/schema.js"
 import { eq, sql } from "drizzle-orm"
 import { requireAuth } from "../../middleware/auth.js"
 import { notifyOrderStatus } from "../../lib/notify.js"
+import postgres from "postgres"
+
+const rawSql = postgres(process.env.DATABASE_URL!, { max: 1 })
+
+async function sendLineNotify(token: string, message: string) {
+  try {
+    await fetch("https://notify-api.line.me/api/notify", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({ message }),
+    })
+  } catch (e) {
+    console.warn("LINE Notify failed:", e)
+  }
+}
 
 const STATUS_LABELS: Record<string, string> = {
   pending_payment: "รอชำระเงิน",
@@ -217,19 +235,64 @@ export async function orderRoutes(app: FastifyInstance) {
 
   // Update tracking number (seller) — auto-sets status to "shipped"
   app.patch("/:id/tracking", { preHandler: [requireAuth] }, async (request) => {
+    const { userId } = request.user as { userId: string }
     const { id } = request.params as { id: string }
-    const { trackingNumber, logisticsProvider } = request.body as { trackingNumber: string; logisticsProvider: string }
+    const { trackingNumber, logisticsProvider, note } = request.body as {
+      trackingNumber: string
+      logisticsProvider: string
+      note?: string
+    }
     const [updated] = await db.update(orders)
       .set({ trackingNumber, logisticsProvider, status: "shipped" as any, updatedAt: new Date() })
       .where(eq(orders.id, id))
       .returning()
 
+    const isLineCommunity = logisticsProvider === "ส่งผ่านชุมชน (LINE)"
+
+    // Notify buyer
     await notifyOrderStatus({
       userId: updated.buyerId,
       orderId: updated.id,
       title: `ออเดอร์ #${updated.id.slice(0, 8).toUpperCase()} — จัดส่งแล้ว`,
-      body: `พัสดุถูกส่งผ่าน ${logisticsProvider} เลขพัสดุ ${trackingNumber}`,
+      body: isLineCommunity
+        ? "ไรเดอร์ชุมชนรับงานแล้ว กำลังนำส่งถึงคุณ"
+        : `พัสดุถูกส่งผ่าน ${logisticsProvider} เลขพัสดุ ${trackingNumber}`,
     })
+
+    // If LINE community delivery → send LINE Notify to the group
+    if (isLineCommunity) {
+      try {
+        const shop = await rawSql`
+          SELECT s.line_notify_token, s.name,
+                 o.delivery_address, o.id as order_id
+          FROM shops s
+          JOIN orders o ON o.shop_id = s.id
+          WHERE s.owner_id = ${userId} AND o.id = ${id}
+          LIMIT 1
+        `
+        const token = shop[0]?.line_notify_token
+        if (token) {
+          const addr = shop[0].delivery_address as any
+          const items = await rawSql`
+            SELECT product_name, qty FROM order_items WHERE order_id = ${id}
+          `
+          const itemList = items.map((i: any) => `${i.product_name} x${i.qty}`).join(", ")
+          const addrStr = `${addr.address} ${addr.district} ${addr.province} ${addr.zip_code || addr.zipCode || ""}`
+          const msg = [
+            "",
+            `📦 มีงานส่ง! #${id.slice(0, 8).toUpperCase()}`,
+            `🛍 สินค้า: ${itemList}`,
+            `📍 ที่อยู่: ${addrStr}`,
+            `👤 ผู้รับ: ${addr.name} ${addr.phone}`,
+            note ? `💬 หมายเหตุ: ${note}` : "",
+            `✅ ตอบกลับข้อความนี้เพื่อรับงาน`,
+          ].filter(Boolean).join("\n")
+          await sendLineNotify(token, msg)
+        }
+      } catch (e) {
+        console.warn("LINE Notify community delivery failed:", e)
+      }
+    }
 
     return { success: true, data: updated }
   })

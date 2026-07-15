@@ -25,6 +25,8 @@ import { addressRoutes } from "./routes/addresses/index.js"
 import { categoryRoutes } from "./routes/categories/index.js"
 import { adminRoutes } from "./routes/admin/index.js"
 import { reviewRoutes } from "./routes/reviews/index.js"
+import { shopRoutes } from "./routes/shops/index.js"
+import { liveRoutes } from "./routes/live/index.js"
 import { db } from "./db/index.js"
 import { users, communities, communityMembers, shops, products, orders } from "./db/schema.js"
 import { count, eq, lte, and } from "drizzle-orm"
@@ -99,6 +101,8 @@ await app.register(addressRoutes,   { prefix: "/api/addresses" })
 await app.register(categoryRoutes,  { prefix: "/api/categories" })
 await app.register(adminRoutes,     { prefix: "/api/admin" })
 await app.register(reviewRoutes,    { prefix: "/api/reviews" })
+await app.register(shopRoutes,      { prefix: "/api/shops" })
+await app.register(liveRoutes,      { prefix: "/api/live" })
 
 // ── Seed endpoint (no auth required — protected by ADMIN_SECRET only) ──────
 app.post("/api/admin/seed", async (request, reply) => {

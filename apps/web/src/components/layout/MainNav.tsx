@@ -1,7 +1,7 @@
 "use client"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ShoppingCart, Search, Bell, Menu, Store, User, LogOut, ChevronDown, X, Home, Package, MessageSquare, ShoppingBag } from "lucide-react"
+import { ShoppingCart, Search, Bell, Menu, Store, User, LogOut, ChevronDown, X, Home, Package, MessageSquare, ShoppingBag, Radio } from "lucide-react"
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useAuthStore } from "@/lib/store/auth"
 import { useCartStore } from "@/lib/store/cart"
@@ -107,6 +107,9 @@ export function MainNav() {
 
             {/* Desktop actions */}
             <div className="hidden sm:flex items-center gap-3">
+              <Link href="/live" className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-full transition-colors">
+                <Radio className="w-4 h-4" /> ไลฟ์สด
+              </Link>
               <Link href="/cart" className="relative p-2 text-gray-600 hover:text-gray-900">
                 <ShoppingCart className="w-5 h-5" />
                 {mounted && cartCount > 0 && (
@@ -285,6 +288,10 @@ export function MainNav() {
                   )}
                 </>
               )}
+
+              <Link href="/live" onClick={closeMobile} className="flex items-center gap-3 px-5 py-3 text-red-600 hover:bg-red-50 active:bg-red-100 text-sm font-medium">
+                <Radio className="w-5 h-5" /> ไลฟ์สด
+              </Link>
 
               <div className="mx-5 my-2 border-t border-gray-100" />
 

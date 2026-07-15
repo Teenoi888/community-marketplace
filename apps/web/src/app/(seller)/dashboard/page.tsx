@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useState } from "react"
-import { Package, ShoppingBag, TrendingUp, MessageSquare, Plus, AlertTriangle, Clock, RefreshCw, ChevronLeft } from "lucide-react"
+import { Package, ShoppingBag, TrendingUp, MessageSquare, Plus, AlertTriangle, Clock, RefreshCw, ChevronLeft, Settings } from "lucide-react"
 import Link from "next/link"
 import { api } from "@/lib/api"
 
@@ -117,6 +117,9 @@ export default function SellerDashboard() {
             >
               <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
             </button>
+            <Link href="/settings" className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors" title="ตั้งค่าร้าน">
+              <Settings className="w-4 h-4" />
+            </Link>
             <Link href="/products/new" className="btn-primary flex items-center gap-2">
               <Plus className="w-4 h-4" /> เพิ่มสินค้า
             </Link>
