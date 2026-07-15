@@ -2,9 +2,11 @@
 import Link from "next/link"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
-import { ShoppingCart, MapPin } from "lucide-react"
+import { useEffect } from "react"
+import { ShoppingCart, MapPin, Heart } from "lucide-react"
 import { useCartStore } from "@/lib/store/cart"
 import { useAuthStore } from "@/lib/store/auth"
+import { useWishlistStore } from "@/lib/store/wishlist"
 import { toast } from "sonner"
 import type { ProductWithShop } from "@cm/types"
 
@@ -20,6 +22,13 @@ export function ProductCard({ product }: ProductCardProps) {
   const addItem = useCartStore((s) => s.addItem)
   const user = useAuthStore((s) => s.user)
   const router = useRouter()
+  const { has, toggle, load, loaded } = useWishlistStore()
+  const wishlisted = has(product.id)
+
+  // Load wishlist IDs once user is known
+  useEffect(() => {
+    if (user && !loaded) load()
+  }, [user, loaded])
 
   function handleAddToCart(e: React.MouseEvent) {
     e.preventDefault()
@@ -36,6 +45,18 @@ export function ProductCard({ product }: ProductCardProps) {
       1
     )
     toast.success(`เพิ่ม "${product.name}" ในตะกร้าแล้ว`)
+  }
+
+  async function handleWishlist(e: React.MouseEvent) {
+    e.preventDefault()
+    if (!user) {
+      toast.error("กรุณาเข้าสู่ระบบก่อนบันทึกสินค้า", {
+        action: { label: "เข้าสู่ระบบ", onClick: () => router.push("/login") },
+      })
+      return
+    }
+    await toggle(product.id)
+    toast.success(wishlisted ? "ลบออกจากรายการโปรดแล้ว" : "บันทึกสินค้าแล้ว ❤️")
   }
 
   return (
@@ -58,6 +79,17 @@ export function ProductCard({ product }: ProductCardProps) {
               <span className="text-white text-sm font-semibold">สินค้าหมด</span>
             </div>
           )}
+          {/* Heart button overlay */}
+          <button
+            onClick={handleWishlist}
+            className={`absolute top-2 right-2 w-7 h-7 rounded-full flex items-center justify-center shadow transition-all
+              ${wishlisted
+                ? "bg-red-500 text-white"
+                : "bg-white/80 text-gray-400 opacity-0 group-hover:opacity-100"
+              }`}
+          >
+            <Heart className={`w-3.5 h-3.5 ${wishlisted ? "fill-white" : ""}`} />
+          </button>
         </div>
 
         {/* Info */}
