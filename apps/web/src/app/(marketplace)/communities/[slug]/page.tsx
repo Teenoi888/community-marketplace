@@ -1,6 +1,6 @@
 import Image from "next/image"
 import Link from "next/link"
-import { MapPin, Package, Users, ChevronLeft } from "lucide-react"
+import { MapPin, Package, Users, ChevronLeft, Star } from "lucide-react"
 import { ProductCard } from "@/components/marketplace/ProductCard"
 import { JoinCommunityActions } from "@/components/community/JoinCommunityActions"
 import { ChatWithSellerButton } from "@/components/community/ChatWithSellerButton"
@@ -16,6 +16,40 @@ async function getCommunity(slug: string) {
   return res.json()
 }
 
+async function getShopRating(shopId: string) {
+  try {
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/shops/${shopId}/rating`,
+      { cache: "no-store" }
+    )
+    if (!res.ok) return null
+    const j = await res.json()
+    return j.data as { avgRating: number; totalReviews: number }
+  } catch {
+    return null
+  }
+}
+
+function StarRating({ rating, total, size = 14 }: { rating: number; total: number; size?: number }) {
+  const filled = Math.round(rating)
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className="flex gap-0.5">
+        {[1, 2, 3, 4, 5].map(s => (
+          <Star
+            key={s}
+            width={size}
+            height={size}
+            className={s <= filled ? "fill-yellow-400 text-yellow-400" : "fill-gray-200 text-gray-200"}
+          />
+        ))}
+      </div>
+      <span className="text-sm font-semibold text-yellow-600">{rating.toFixed(1)}</span>
+      <span className="text-xs text-gray-500">({total} รีวิว)</span>
+    </div>
+  )
+}
+
 export default async function CommunityPage({ params }: Props) {
   const res = await getCommunity(params.slug)
 
@@ -28,6 +62,7 @@ export default async function CommunityPage({ params }: Props) {
   }
 
   const { community, products, shop } = res.data
+  const shopRating = shop?.id ? await getShopRating(shop.id) : null
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -84,7 +119,7 @@ export default async function CommunityPage({ params }: Props) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
         {/* Stats */}
-        <div className="flex gap-6 mb-6 p-4 bg-white rounded-xl shadow-sm border border-gray-100">
+        <div className="flex flex-wrap gap-6 mb-6 p-4 bg-white rounded-xl shadow-sm border border-gray-100">
           <div className="flex items-center gap-2 text-sm text-gray-600">
             <Package className="w-4 h-4 text-primary-500" />
             <span className="font-semibold">{products?.length ?? 0}</span> สินค้า
@@ -93,6 +128,11 @@ export default async function CommunityPage({ params }: Props) {
             <Users className="w-4 h-4 text-primary-500" />
             <span className="font-semibold">{community.memberCount}</span> สมาชิก
           </div>
+          {shopRating && shopRating.totalReviews > 0 && (
+            <div className="flex items-center gap-2">
+              <StarRating rating={shopRating.avgRating} total={shopRating.totalReviews} />
+            </div>
+          )}
         </div>
 
         {community.description && (

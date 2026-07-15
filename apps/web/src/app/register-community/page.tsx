@@ -7,7 +7,7 @@ import { z } from "zod"
 import { toast } from "sonner"
 import { MainNav } from "@/components/layout/MainNav"
 import { api } from "@/lib/api"
-import { Upload, CheckCircle, ChevronDown } from "lucide-react"
+import { Upload, CheckCircle, ChevronDown, MapPin, AlertTriangle, Loader2, Navigation } from "lucide-react"
 import Image from "next/image"
 
 const PROVINCES = ["กรุงเทพมหานคร","เชียงใหม่","เชียงราย","ลำพูน","ลำปาง","นครราชสีมา","ขอนแก่น","อุดรธานี","นครสวรรค์","พิษณุโลก","ระยอง","ชลบุรี","สุราษฎร์ธานี","นครศรีธรรมราช","สงขลา","ภูเก็ต","กระบี่"]
@@ -28,6 +28,13 @@ const PLANS = [
   { id: "pro", name: "Pro", price: "฿799/เดือน", features: ["ทุกอย่างใน Community", "Line Bot ครบระบบ", "LIFF App", "รายงานรายได้"] },
 ]
 
+type ZoneStatus =
+  | { state: "idle" }
+  | { state: "loading" }
+  | { state: "available"; lat: number; lng: number }
+  | { state: "conflict"; lat: number; lng: number; conflictName: string; distanceKm: number; message: string }
+  | { state: "error"; message: string }
+
 export default function RegisterCommunityPage() {
   const router = useRouter()
   const [plan, setPlan] = useState("free")
@@ -37,10 +44,47 @@ export default function RegisterCommunityPage() {
   const [bannerFile, setBannerFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
+  const [zone, setZone] = useState<ZoneStatus>({ state: "idle" })
 
   const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
   })
+
+  async function detectLocation() {
+    if (!navigator.geolocation) {
+      setZone({ state: "error", message: "เบราว์เซอร์ไม่รองรับ Geolocation" })
+      return
+    }
+    setZone({ state: "loading" })
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const lat = pos.coords.latitude
+        const lng = pos.coords.longitude
+        try {
+          const r = await api.get(`/communities/check-zone?lat=${lat}&lng=${lng}`)
+          const data = r.data
+          if (data.available) {
+            setZone({ state: "available", lat, lng })
+          } else {
+            setZone({
+              state: "conflict",
+              lat, lng,
+              conflictName: data.conflict.name,
+              distanceKm: data.conflict.distanceKm,
+              message: data.message,
+            })
+          }
+        } catch {
+          setZone({ state: "error", message: "ตรวจสอบพื้นที่ไม่สำเร็จ กรุณาลองใหม่" })
+        }
+      },
+      (err) => {
+        if (err.code === 1) setZone({ state: "error", message: "กรุณาอนุญาต Location แล้วลองใหม่" })
+        else setZone({ state: "error", message: "ไม่สามารถระบุตำแหน่งได้ กรุณาลองใหม่" })
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    )
+  }
 
   async function uploadImage(file: File, folder: string): Promise<string | undefined> {
     const formData = new FormData()
@@ -51,6 +95,10 @@ export default function RegisterCommunityPage() {
   }
 
   async function onSubmit(data: FormData) {
+    if (zone.state !== "available") {
+      toast.error("กรุณาตรวจสอบพื้นที่ก่อนสร้างชุมชน")
+      return
+    }
     setLoading(true)
     try {
       let logoUrl: string | undefined
@@ -65,7 +113,14 @@ export default function RegisterCommunityPage() {
         catch { toast.error("อัปโหลด banner ไม่สำเร็จ — จะใช้สีพื้นแทน") }
       }
 
-      await api.post("/communities", { ...data, plan, logoUrl, bannerUrl })
+      await api.post("/communities", {
+        ...data,
+        plan,
+        logoUrl,
+        bannerUrl,
+        lat: zone.lat,
+        lng: zone.lng,
+      })
       setDone(true)
     } catch (err: any) {
       toast.error(err.response?.data?.error || "เกิดข้อผิดพลาด")
@@ -98,6 +153,96 @@ export default function RegisterCommunityPage() {
         <p className="text-gray-500 mb-8">เปิดร้านค้าออนไลน์ให้ชุมชนของคุณ ฟรี ไม่มี GP</p>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+
+          {/* ── Zone Detection ─────────────────────────────────────────────── */}
+          <div className="card space-y-4">
+            <h2 className="font-semibold text-gray-800 flex items-center gap-2">
+              <MapPin className="w-5 h-5 text-primary-600" />
+              ตรวจสอบพื้นที่ชุมชน <span className="text-red-500">*</span>
+            </h2>
+            <p className="text-sm text-gray-500">
+              แต่ละชุมชนต้องอยู่ห่างกันอย่างน้อย <strong>10 km</strong> เพื่อป้องกันการซ้ำซ้อนของพื้นที่บริการ
+            </p>
+
+            {zone.state === "idle" && (
+              <button
+                type="button"
+                onClick={detectLocation}
+                className="flex items-center gap-2 bg-primary-600 hover:bg-primary-700 text-white px-5 py-2.5 rounded-xl font-medium transition-colors"
+              >
+                <Navigation className="w-4 h-4" />
+                ตรวจสอบตำแหน่งของฉัน
+              </button>
+            )}
+
+            {zone.state === "loading" && (
+              <div className="flex items-center gap-3 text-gray-500">
+                <Loader2 className="w-5 h-5 animate-spin text-primary-600" />
+                <span className="text-sm">กำลังระบุตำแหน่งและตรวจสอบพื้นที่...</span>
+              </div>
+            )}
+
+            {zone.state === "available" && (
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex items-start gap-3 flex-1 bg-green-50 border border-green-200 rounded-xl p-4">
+                  <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-green-700">พื้นที่นี้ว่างอยู่ ✓</p>
+                    <p className="text-xs text-green-600 mt-0.5">
+                      ตำแหน่ง: {zone.lat.toFixed(5)}, {zone.lng.toFixed(5)}
+                    </p>
+                    <p className="text-xs text-green-600">ไม่มีชุมชนอื่นในรัศมี 10 km — สามารถสร้างได้</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={detectLocation}
+                  className="text-sm text-gray-500 hover:text-gray-700 underline underline-offset-2 whitespace-nowrap"
+                >
+                  ตรวจสอบใหม่
+                </button>
+              </div>
+            )}
+
+            {zone.state === "conflict" && (
+              <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+                <div className="flex items-start gap-3 flex-1 bg-red-50 border border-red-200 rounded-xl p-4">
+                  <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="text-sm font-semibold text-red-700">พื้นที่นี้มีชุมชนอื่นอยู่แล้ว</p>
+                    <p className="text-xs text-red-600 mt-0.5">
+                      ชุมชน <strong>"{zone.conflictName}"</strong> อยู่ห่างแค่ {zone.distanceKm} km
+                    </p>
+                    <p className="text-xs text-red-500 mt-1">ต้องอยู่ห่างกันอย่างน้อย 10 km จึงจะสร้างชุมชนใหม่ได้</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={detectLocation}
+                  className="text-sm text-gray-500 hover:text-gray-700 underline underline-offset-2 whitespace-nowrap"
+                >
+                  ตรวจสอบใหม่
+                </button>
+              </div>
+            )}
+
+            {zone.state === "error" && (
+              <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                <div className="flex items-center gap-3 flex-1 bg-amber-50 border border-amber-200 rounded-xl p-4">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0" />
+                  <p className="text-sm text-amber-700">{zone.message}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={detectLocation}
+                  className="text-sm text-gray-500 hover:text-gray-700 underline underline-offset-2 whitespace-nowrap"
+                >
+                  ลองใหม่
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Banner + Logo upload */}
           <div className="card space-y-5">
             <h2 className="font-semibold text-gray-800">รูปภาพชุมชน</h2>
@@ -216,8 +361,12 @@ export default function RegisterCommunityPage() {
             </div>
           </div>
 
-          <button type="submit" disabled={loading} className="btn-primary w-full py-4 text-base">
-            {loading ? "กำลังสร้างชุมชน..." : "สร้างชุมชน — เริ่มขายได้เลย!"}
+          <button
+            type="submit"
+            disabled={loading || zone.state !== "available"}
+            className="btn-primary w-full py-4 text-base disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {loading ? "กำลังสร้างชุมชน..." : zone.state !== "available" ? "ตรวจสอบพื้นที่ก่อน" : "สร้างชุมชน — เริ่มขายได้เลย!"}
           </button>
         </form>
       </div>

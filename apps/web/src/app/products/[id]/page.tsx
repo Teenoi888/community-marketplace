@@ -84,13 +84,23 @@ export default function ProductDetailPage() {
   const [avgRating, setAvgRating] = useState(0)
   const [totalReviews, setTotalReviews] = useState(0)
   const [eligibility, setEligibility] = useState<{ eligible: boolean; alreadyReviewed: boolean; orderId: string | null } | null>(null)
+  const [shopRating, setShopRating] = useState<{ avgRating: number; totalReviews: number } | null>(null)
   const [reviewRating, setReviewRating] = useState(5)
   const [reviewComment, setReviewComment] = useState("")
   const [submittingReview, setSubmittingReview] = useState(false)
 
   useEffect(() => {
     api.get(`/products/${id}`)
-      .then(r => setProduct(r.data.data))
+      .then(r => {
+        const p = r.data.data
+        setProduct(p)
+        // Fetch shop rating once we know the shop id
+        if (p?.shop?.id) {
+          api.get(`/shops/${p.shop.id}/rating`)
+            .then(sr => setShopRating(sr.data.data))
+            .catch(() => {})
+        }
+      })
       .catch(() => router.push("/"))
       .finally(() => setLoading(false))
   }, [id])
@@ -305,12 +315,21 @@ export default function ProductDetailPage() {
                 </div>
                 <div className="min-w-0">
                   <p className="font-medium text-gray-900 truncate">{product.shop.name}</p>
-                  {product.shop.community && (
+                  {shopRating && shopRating.totalReviews > 0 ? (
+                    <div className="flex items-center gap-1 mt-0.5">
+                      {[1,2,3,4,5].map(s => (
+                        <Star key={s} width={11} height={11}
+                          className={s <= Math.round(shopRating.avgRating) ? "fill-yellow-400 text-yellow-400" : "fill-gray-200 text-gray-200"} />
+                      ))}
+                      <span className="text-xs text-yellow-600 font-semibold ml-0.5">{shopRating.avgRating.toFixed(1)}</span>
+                      <span className="text-xs text-gray-400">({shopRating.totalReviews})</span>
+                    </div>
+                  ) : product.shop.community ? (
                     <p className="text-xs text-gray-500 flex items-center gap-1">
                       <MapPin className="w-3 h-3" />
                       {product.shop.community.district}, {product.shop.community.province}
                     </p>
-                  )}
+                  ) : null}
                 </div>
               </Link>
               <button

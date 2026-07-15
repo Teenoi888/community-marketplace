@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useState } from "react"
-import { Package, ShoppingBag, TrendingUp, MessageSquare, Plus, AlertTriangle, Clock, RefreshCw, ChevronLeft, Settings } from "lucide-react"
+import { Package, ShoppingBag, TrendingUp, MessageSquare, Plus, AlertTriangle, Clock, RefreshCw, ChevronLeft, Settings, BarChart2, Star } from "lucide-react"
 import Link from "next/link"
 import { api } from "@/lib/api"
 
@@ -24,13 +24,21 @@ export default function SellerDashboard() {
   const [stats, setStats] = useState<ShopStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
+  const [shopRating, setShopRating] = useState<{ avgRating: number; totalReviews: number } | null>(null)
 
   async function fetchStats() {
     setLoading(true)
     try {
       const r = await api.get("/orders/shop/stats")
-      setStats(r.data.data)
+      const s = r.data.data
+      setStats(s)
       setLastUpdated(new Date())
+      // Fetch shop rating using the shopId from stats
+      if (s?.shopId) {
+        api.get(`/shops/${s.shopId}/rating`)
+          .then(rr => setShopRating(rr.data.data))
+          .catch(() => {})
+      }
     } catch {
       // user has no shop yet → stats stay null
     } finally {
@@ -163,7 +171,7 @@ export default function SellerDashboard() {
         )}
 
         {/* Quick links */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <Link href="/products" className="card hover:shadow-md transition-shadow flex items-center gap-4 group">
             <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-green-600 group-hover:bg-green-200 transition-colors">
               <Package className="w-6 h-6" />
@@ -199,6 +207,55 @@ export default function SellerDashboard() {
               <div className="text-sm text-gray-500">ตอบคำถามและนัดส่ง</div>
             </div>
           </Link>
+
+          <Link href="/dashboard/analytics" className="card hover:shadow-md transition-shadow flex items-center gap-4 group">
+            <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center text-purple-600 group-hover:bg-purple-200 transition-colors">
+              <BarChart2 className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="font-semibold text-gray-900">Analytics</div>
+              <div className="text-sm text-gray-500">ยอดขาย + สินค้าขายดี</div>
+            </div>
+          </Link>
+
+          <Link href="/inventory" className="card hover:shadow-md transition-shadow flex items-center gap-4 group">
+            <div className={`w-12 h-12 rounded-xl flex items-center justify-center transition-colors ${
+              (stats?.outOfStockProducts ?? 0) > 0 ? "bg-red-100 text-red-600 group-hover:bg-red-200" :
+              (stats?.lowStockProducts ?? 0) > 0 ? "bg-amber-100 text-amber-600 group-hover:bg-amber-200" :
+              "bg-teal-100 text-teal-600 group-hover:bg-teal-200"
+            }`}>
+              <Package className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="font-semibold text-gray-900">สต็อก</div>
+              <div className="text-sm">
+                {(stats?.outOfStockProducts ?? 0) > 0
+                  ? <span className="text-red-500 font-medium">{stats!.outOfStockProducts} หมด!</span>
+                  : (stats?.lowStockProducts ?? 0) > 0
+                    ? <span className="text-amber-500">{stats!.lowStockProducts} เหลือน้อย</span>
+                    : <span className="text-gray-500">จัดการสต็อก</span>
+                }
+              </div>
+            </div>
+          </Link>
+
+          {/* Shop Rating card */}
+          <div className="card flex items-center gap-4">
+            <div className="w-12 h-12 bg-yellow-100 rounded-xl flex items-center justify-center text-yellow-500 flex-shrink-0">
+              <Star className="w-6 h-6 fill-yellow-400" />
+            </div>
+            <div>
+              <div className="font-semibold text-gray-900">คะแนนร้าน</div>
+              {shopRating && shopRating.totalReviews > 0 ? (
+                <div className="flex items-center gap-1 mt-0.5">
+                  <span className="text-xl font-bold text-yellow-500">{shopRating.avgRating.toFixed(1)}</span>
+                  <span className="text-xs text-gray-400">/ 5 · {shopRating.totalReviews} รีวิว</span>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-400">ยังไม่มีรีวิว</div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
