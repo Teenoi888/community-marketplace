@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useState } from "react"
-import { Package, ShoppingBag, TrendingUp, MessageSquare, Plus, AlertTriangle, Clock, RefreshCw, ChevronLeft, Settings, BarChart2, Star } from "lucide-react"
+import { Package, ShoppingBag, TrendingUp, MessageSquare, Plus, AlertTriangle, Clock, RefreshCw, ChevronLeft, Settings, BarChart2, Star, Zap } from "lucide-react"
 import Link from "next/link"
 import { api } from "@/lib/api"
 
@@ -33,7 +33,6 @@ export default function SellerDashboard() {
       const s = r.data.data
       setStats(s)
       setLastUpdated(new Date())
-      // Fetch shop rating using the shopId from stats
       if (s?.shopId) {
         api.get(`/shops/${s.shopId}/rating`)
           .then(rr => setShopRating(rr.data.data))
@@ -171,7 +170,7 @@ export default function SellerDashboard() {
         )}
 
         {/* Quick links */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           <Link href="/products" className="card hover:shadow-md transition-shadow flex items-center gap-4 group">
             <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center text-green-600 group-hover:bg-green-200 transition-colors">
               <Package className="w-6 h-6" />
@@ -236,6 +235,16 @@ export default function SellerDashboard() {
                     : <span className="text-gray-500">จัดการสต็อก</span>
                 }
               </div>
+            </div>
+          </Link>
+
+          <Link href="/flash-sales" className="card hover:shadow-md transition-shadow flex items-center gap-4 group">
+            <div className="w-12 h-12 bg-red-100 rounded-xl flex items-center justify-center text-yellow-500 group-hover:bg-red-200 transition-colors">
+              <Zap className="w-6 h-6 fill-yellow-400" />
+            </div>
+            <div>
+              <div className="font-semibold text-gray-900">Flash Sale</div>
+              <div className="text-sm text-gray-500">สร้างโปรลดราคาชั่วคราว</div>
             </div>
           </Link>
 

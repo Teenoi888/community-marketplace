@@ -3,7 +3,8 @@ import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
-import { ShoppingCart, ArrowLeft, Store, MapPin, Package, MessageSquare, Star } from "lucide-react"
+import { ShoppingCart, ArrowLeft, Store, MapPin, Package, MessageSquare, Star, Sparkles } from "lucide-react"
+import { FlashSaleBadge } from "@/components/marketplace/FlashSaleBadge"
 import { api } from "@/lib/api"
 import { useCartStore } from "@/lib/store/cart"
 import { useAuthStore } from "@/lib/store/auth"
@@ -79,6 +80,12 @@ export default function ProductDetailPage() {
   const { addItem } = useCartStore()
   const user = useAuthStore((s) => s.user)
 
+  // Flash sale
+  const [flashSale, setFlashSale] = useState<{ discountPct: number; endsAt: string; discountedPrice: number } | null>(null)
+
+  // Recommendations
+  const [recommendations, setRecommendations] = useState<any[]>([])
+
   // Reviews
   const [reviews, setReviews] = useState<Review[]>([])
   const [avgRating, setAvgRating] = useState(0)
@@ -112,6 +119,16 @@ export default function ProductDetailPage() {
         setReviews(r.data.data || [])
         setAvgRating(r.data.avgRating || 0)
         setTotalReviews(r.data.total || 0)
+      })
+      .catch(() => {})
+    api.get(`/products/recommendations/${id}`)
+      .then(r => setRecommendations(r.data.data || []))
+      .catch(() => {})
+    // Check if product has active flash sale
+    api.get("/flash-sales")
+      .then(r => {
+        const sale = (r.data.data || []).find((s: any) => s.product?.id === id)
+        if (sale) setFlashSale({ discountPct: sale.discountPct, endsAt: sale.endsAt, discountedPrice: sale.discountedPrice })
       })
       .catch(() => {})
   }, [id])
@@ -272,8 +289,20 @@ export default function ProductDetailPage() {
 
             {/* 3. Purchase card: price, stock, qty, CTA — kept together as one decision flow */}
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-4">
+              {flashSale && (
+                <FlashSaleBadge discountPct={flashSale.discountPct} endsAt={flashSale.endsAt} size="md" />
+              )}
               <div className="flex items-center justify-between">
-                <p className="text-3xl font-bold text-primary-600">฿{price.toLocaleString()}</p>
+                <div>
+                  {flashSale ? (
+                    <div className="flex items-baseline gap-2">
+                      <p className="text-3xl font-bold text-red-600">฿{flashSale.discountedPrice.toLocaleString()}</p>
+                      <p className="text-lg text-gray-400 line-through">฿{price.toLocaleString()}</p>
+                    </div>
+                  ) : (
+                    <p className="text-3xl font-bold text-primary-600">฿{price.toLocaleString()}</p>
+                  )}
+                </div>
                 <p className={`text-sm font-medium px-2.5 py-1 rounded-full ${
                   product.stock === 0 ? "bg-red-50 text-red-600"
                   : product.stock <= 5 ? "bg-orange-50 text-orange-600"
@@ -355,6 +384,44 @@ export default function ProductDetailPage() {
             {product.stock === 0 ? "สินค้าหมด" : `เพิ่มลงตะกร้า · ฿${(price * qty).toLocaleString()}`}
           </button>
         </div>
+
+        {/* ── Recommendations ── */}
+        {recommendations.length > 0 && (
+          <div className="mt-10">
+            <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <Sparkles className="w-5 h-5 text-primary-500" />
+              สินค้าในหมวดเดียวกัน
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+              {recommendations.map(rec => (
+                <Link key={rec.id} href={`/products/${rec.id}`}
+                  className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow group">
+                  <div className="relative aspect-square bg-gray-100">
+                    {rec.images?.[0]
+                      ? <Image src={rec.images[0]} alt={rec.name} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
+                      : <div className="w-full h-full flex items-center justify-center text-3xl">🛒</div>
+                    }
+                  </div>
+                  <div className="p-2.5">
+                    <p className="text-sm font-medium text-gray-900 line-clamp-2 group-hover:text-primary-600 transition-colors">{rec.name}</p>
+                    <p className="text-xs text-gray-400 mt-0.5 truncate">{rec.shop.community.name}</p>
+                    <div className="flex items-center justify-between mt-1.5">
+                      <span className="text-primary-600 font-bold text-sm">
+                        ฿{Number(rec.price).toLocaleString()}
+                      </span>
+                      {rec.avgRating > 0 && (
+                        <div className="flex items-center gap-0.5">
+                          <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                          <span className="text-xs text-gray-500">{rec.avgRating.toFixed(1)}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ── Reviews Section ── */}
         <div className="mt-10">
