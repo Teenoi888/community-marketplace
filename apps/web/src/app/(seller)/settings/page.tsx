@@ -86,7 +86,7 @@ export default function ShopSettingsPage() {
             <h2 className="font-semibold text-gray-800 flex items-center gap-2">
               <span className="text-green-600">📲</span> ตั้งค่าส่งผ่านชุมชน (LINE)
             </h2>
-            <p className="text-xs text-gray-400 mt-1">เมื่อเลือกขนส่ง "ส่งผ่านชุมชน (LINE)" ระบบจะส่งรายละเอียดออเดอร์เข้ากลุ่ม LINE ไรเดอร์ของคุณอัตโนมัติ</p>
+            <p className="text-xs text-gray-400 mt-1">เมื่อเลือกขนส่ง &quot;ส่งผ่านชุมชน (LINE)&quot; ระบบจะส่งรายละเอียดออเดอร์เข้ากลุ่ม LINE ไรเดอร์ของคุณอัตโนมัติ</p>
           </div>
 
           <div>
