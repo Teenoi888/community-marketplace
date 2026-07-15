@@ -1,5 +1,6 @@
 "use client"
 export const dynamic = 'force-dynamic'
+import { Suspense } from "react"
 import { useEffect, useRef, useState, useCallback } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import { api } from "@/lib/api"
@@ -14,7 +15,7 @@ const WS_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api")
 interface ChatMsg { userId: string; userName: string; message: string; createdAt: string }
 interface PinnedProduct { id: string; name: string; price: string; images: string[] }
 
-export default function BroadcastPage() {
+function BroadcastContent() {
   const params = useSearchParams()
   const router = useRouter()
   const sessionId = params.get("id") || ""
@@ -177,7 +178,7 @@ export default function BroadcastPage() {
     wsRef.current?.send(JSON.stringify({ type: "pin_product", productId: null }))
   }
 
-  if (!user) return <div className="p-8 text-center text-gray-500">กรุณาเข้าสู่ระบบก่อน</div>
+  if (!user) return <div className="min-h-screen bg-gray-950 flex items-center justify-center text-gray-400">กรุณาเข้าสู่ระบบก่อน</div>
 
   return (
     <div className="min-h-screen bg-gray-950 text-white flex flex-col md:flex-row">
@@ -289,5 +290,17 @@ export default function BroadcastPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function BroadcastPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <div className="text-white text-sm">กำลังโหลด...</div>
+      </div>
+    }>
+      <BroadcastContent />
+    </Suspense>
   )
 }
