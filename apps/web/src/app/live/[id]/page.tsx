@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { api } from "@/lib/api"
 import { useAuthStore } from "@/lib/store/auth"
 import { useCartStore } from "@/lib/store/cart"
-import { Radio, Users, Send, ShoppingCart, Pin, ArrowLeft } from "lucide-react"
+import { Radio, Users, Send, ShoppingCart, Pin, ArrowLeft, Play } from "lucide-react"
 import { toast } from "sonner"
 import Link from "next/link"
 
@@ -34,6 +34,7 @@ export default function ViewerPage() {
   const [viewerCount, setViewerCount] = useState(0)
   const [ended, setEnded] = useState(false)
   const [pinnedProducts, setPinnedProducts] = useState<PinnedProduct[]>([])
+  const [needsPlay, setNeedsPlay] = useState(false)
   const chatEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }) }, [chat])
@@ -69,13 +70,20 @@ export default function ViewerPage() {
       remoteVideoRef.current.srcObject = remoteStream
     }
 
+    const tryPlay = (video: HTMLVideoElement) => {
+      video.play().then(() => setNeedsPlay(false)).catch(() => setNeedsPlay(true))
+    }
+
     pc.ontrack = (e) => {
+      const video = remoteVideoRef.current
+      if (!video) return
       if (e.streams && e.streams[0]) {
-        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = e.streams[0]
+        video.srcObject = e.streams[0]
       } else {
         remoteStream.addTrack(e.track)
-        if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream
+        video.srcObject = remoteStream
       }
+      tryPlay(video)
     }
 
     pc.onicecandidate = (e) => {
@@ -175,6 +183,23 @@ export default function ViewerPage() {
       {/* Video */}
       <div className="flex-1 relative bg-black flex items-center justify-center">
         <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover max-h-[60vh] md:max-h-screen" />
+
+        {/* Click-to-play overlay — desktop autoplay may be blocked */}
+        {needsPlay && (
+          <button
+            onClick={() => {
+              const video = remoteVideoRef.current
+              if (!video) return
+              video.play().then(() => setNeedsPlay(false)).catch(() => {})
+            }}
+            className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 z-10 gap-3"
+          >
+            <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center">
+              <Play className="w-10 h-10 text-white fill-white" />
+            </div>
+            <span className="text-white text-sm font-medium">คลิกเพื่อดูไลฟ์</span>
+          </button>
+        )}
 
         {/* Top bar */}
         <div className="absolute top-4 left-4 flex items-center gap-3">
