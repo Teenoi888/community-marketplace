@@ -164,6 +164,11 @@ export async function liveRoutes(app: FastifyInstance) {
           sendAll(session, { type: "chat", ...chatMsg })
         }
 
+        else if (msg.type === "reaction") {
+          // broadcast emoji reaction to all (including broadcaster) except sender
+          sendAll(session, { type: "reaction", emoji: String(msg.emoji).slice(0, 4), userName: msg.userName || "ผู้ชม" }, ws)
+        }
+
         else if (msg.type === "pin_product" && role === "broadcaster") {
           if (msg.productId) {
             if (!session.pinnedProducts.includes(msg.productId)) session.pinnedProducts.push(msg.productId)

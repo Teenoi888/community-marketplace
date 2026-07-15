@@ -39,6 +39,23 @@ export default function ViewerPage() {
   const [iceState, setIceState] = useState<string>("connecting")
   const chatEndRef = useRef<HTMLDivElement>(null)
 
+  // Reactions
+  interface FloatingReaction { id: string; emoji: string; x: number }
+  const [floatingReactions, setFloatingReactions] = useState<FloatingReaction[]>([])
+
+  function addFloating(emoji: string) {
+    const id = crypto.randomUUID()
+    const x = 5 + Math.random() * 70 // 5–75% from left
+    setFloatingReactions(prev => [...prev, { id, emoji, x }])
+    setTimeout(() => setFloatingReactions(prev => prev.filter(r => r.id !== id)), 2800)
+  }
+
+  function sendReaction(emoji: string) {
+    if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return
+    wsRef.current.send(JSON.stringify({ type: "reaction", emoji, userName: user?.name || "ผู้ชม" }))
+    addFloating(emoji) // show locally immediately
+  }
+
   useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }) }, [chat])
 
   // Load session info
@@ -143,6 +160,10 @@ export default function ViewerPage() {
           setViewerCount(msg.viewerCount)
         }
 
+        else if (msg.type === "reaction") {
+          addFloating(msg.emoji)
+        }
+
         else if (msg.type === "session_ended") {
           setEnded(true)
           toast.info("ไลฟ์สิ้นสุดแล้ว")
@@ -192,6 +213,15 @@ export default function ViewerPage() {
 
   return (
     <div className="min-h-screen bg-gray-950 text-white flex flex-col md:flex-row">
+      <style>{`
+        @keyframes float-up {
+          0%   { transform: translateY(0) scale(1); opacity: 1; }
+          70%  { opacity: 0.8; }
+          100% { transform: translateY(-180px) scale(1.3); opacity: 0; }
+        }
+        .emoji-float { animation: float-up 2.8s ease-out forwards; }
+      `}</style>
+
       {/* Video */}
       <div className="flex-1 relative bg-black flex items-center justify-center">
         <video ref={remoteVideoRef} autoPlay playsInline muted className="w-full h-full object-cover max-h-[60vh] md:max-h-screen" />
@@ -251,6 +281,33 @@ export default function ViewerPage() {
           <span className="bg-black/50 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1">
             <Users className="w-3 h-3" /> {viewerCount}
           </span>
+        </div>
+
+        {/* Floating emoji reactions */}
+        <div className="absolute inset-0 pointer-events-none overflow-hidden z-20">
+          {floatingReactions.map(r => (
+            <div
+              key={r.id}
+              className="absolute text-3xl emoji-float select-none"
+              style={{ left: `${r.x}%`, bottom: "100px" }}
+            >
+              {r.emoji}
+            </div>
+          ))}
+        </div>
+
+        {/* Reaction buttons */}
+        <div className="absolute bottom-20 right-4 flex flex-col gap-2 z-10">
+          {["❤️", "😂", "🔥", "👏", "🎉"].map(emoji => (
+            <button
+              key={emoji}
+              onClick={() => sendReaction(emoji)}
+              className="w-10 h-10 text-xl bg-black/50 hover:bg-black/70 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-90"
+              title={`ส่ง ${emoji}`}
+            >
+              {emoji}
+            </button>
+          ))}
         </div>
 
         {/* Title */}
