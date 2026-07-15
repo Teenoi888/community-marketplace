@@ -1,10 +1,11 @@
 "use client"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { ShoppingCart, Search, Bell, Menu, Store, User, LogOut, ChevronDown, X, Home, Package, MessageSquare, ShoppingBag, Radio } from "lucide-react"
+import { ShoppingCart, Search, Bell, Menu, Store, User, LogOut, ChevronDown, X, Home, Package, MessageSquare, ShoppingBag, Radio, Heart } from "lucide-react"
 import { useState, useRef, useEffect, useCallback } from "react"
 import { useAuthStore } from "@/lib/store/auth"
 import { useCartStore } from "@/lib/store/cart"
+import { useWishlistStore } from "@/lib/store/wishlist"
 import { api } from "@/lib/api"
 import { useInactivityLogout } from "@/lib/hooks/useInactivityLogout"
 import { useNotifications } from "@/lib/hooks/useNotifications"
@@ -19,15 +20,17 @@ export function MainNav() {
   const dropdownRef = useRef<HTMLDivElement>(null)
   const { user, setUser, logout } = useAuthStore()
   const cartCount = useCartStore((s) => s.itemCount())
+  const resetWishlist = useWishlistStore((s) => s.reset)
   const [mounted, setMounted] = useState(false)
 
   const handleLogout = useCallback(async () => {
     try { await api.post("/auth/logout") } catch { /* ignore */ }
     logout()
+    resetWishlist()
     setDropdownOpen(false)
     setMobileOpen(false)
     router.push("/login")
-  }, [logout, router])
+  }, [logout, resetWishlist, router])
 
   useInactivityLogout()
   const { unreadCount } = useNotifications()
@@ -110,6 +113,11 @@ export function MainNav() {
               <Link href="/live" className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-red-600 hover:bg-red-50 rounded-full transition-colors">
                 <Radio className="w-4 h-4" /> ไลฟ์สด
               </Link>
+              {user && (
+                <Link href="/wishlist" className="p-2 text-gray-400 hover:text-red-500 transition-colors" title="รายการโปรด">
+                  <Heart className="w-5 h-5" />
+                </Link>
+              )}
               <Link href="/cart" className="relative p-2 text-gray-600 hover:text-gray-900">
                 <ShoppingCart className="w-5 h-5" />
                 {mounted && cartCount > 0 && (
@@ -148,6 +156,9 @@ export function MainNav() {
                       <div className="absolute right-0 mt-2 w-52 bg-white border border-gray-200 rounded-xl shadow-lg py-1 z-50">
                         <Link href="/orders" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
                           <ShoppingBag className="w-4 h-4" /> คำสั่งซื้อของฉัน
+                        </Link>
+                        <Link href="/wishlist" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
+                          <Heart className="w-4 h-4 text-red-400" /> รายการโปรด
                         </Link>
                         <Link href="/dashboard" onClick={() => setDropdownOpen(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50">
                           <Store className="w-4 h-4" /> จัดการร้านค้า
