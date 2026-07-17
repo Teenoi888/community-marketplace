@@ -1,4 +1,5 @@
 import axios from "axios"
+import { useAuthStore } from "./store/auth"
 
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api",
@@ -33,8 +34,8 @@ api.interceptors.response.use(
         original.headers.Authorization = `Bearer ${data.accessToken}`
         return api(original)
       } catch {
-        localStorage.removeItem("access_token")
-        // Don't auto-redirect — let protected pages handle this themselves
+        // Refresh failed — fully log out so Zustand state clears (prevents auto-logout loop)
+        useAuthStore.getState().logout()
       }
     }
     return Promise.reject(error)

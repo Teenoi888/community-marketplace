@@ -26,9 +26,9 @@ function CategoryBarInner() {
 
   function select(slug: string) {
     if (slug === "all") {
-      router.push("/")
+      router.push("/", { scroll: false })
     } else {
-      router.push(`/?category=${slug}`)
+      router.push(`/?category=${slug}`, { scroll: false })
     }
   }
 

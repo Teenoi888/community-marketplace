@@ -17,6 +17,7 @@ interface Product {
   description?: string
   price: string
   stock: number
+  soldCount?: number
   images: string[]
   category: string
   status: string
@@ -309,6 +310,9 @@ export default function ProductDetailPage() {
                   : "bg-gray-100 text-gray-600"
                 }`}>
                   {product.stock === 0 ? "สินค้าหมด" : `คงเหลือ ${product.stock} ชิ้น`}
+                  {product.soldCount != null && product.soldCount > 0 && (
+                    <span className="ml-2 text-gray-400">· ขายไปแล้ว {product.soldCount} ชิ้น</span>
+                  )}
                 </p>
               </div>
 

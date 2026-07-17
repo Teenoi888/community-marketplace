@@ -101,6 +101,7 @@ export const products = pgTable("products", {
   price: numeric("price", { precision: 12, scale: 2 }).notNull(),
   stock: integer("stock").default(0).notNull(),
   images: jsonb("images").$type<string[]>().default([]).notNull(),
+  variants: jsonb("variants").$type<{ name: string; options: { label: string; additionalPrice: number; stock: number }[] }[]>().default([]).notNull(),
   category: text("category").notNull(),
   status: productStatusEnum("status").default("active").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),

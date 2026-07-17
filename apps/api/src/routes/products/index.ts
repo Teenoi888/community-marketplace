@@ -9,6 +9,16 @@ import postgres from "postgres"
 
 const sql = postgres(process.env.DATABASE_URL!, { max: 1 })
 
+const variantOptionSchema = z.object({
+  label: z.string(),
+  additionalPrice: z.number().default(0),
+  stock: z.number().int().min(0).default(0),
+})
+const variantGroupSchema = z.object({
+  name: z.string(),
+  options: z.array(variantOptionSchema),
+})
+
 const createProductSchema = z.object({
   shopId: z.string().uuid(),
   name: z.string().min(2),
@@ -17,13 +27,14 @@ const createProductSchema = z.object({
   stock: z.number().int().min(0),
   images: z.array(z.string().url()).default([]),
   category: z.string(),
+  variants: z.array(variantGroupSchema).default([]),
 })
 
 export async function productRoutes(app: FastifyInstance) {
 
   // List products (marketplace or seller=me)
   app.get("/", async (request) => {
-    const { category, communityId, search, seller, lat, lng, maxDistanceKm, limit = "20", page = "1" } = request.query as Record<string, string>
+    const { category, communityId, province, search, seller, lat, lng, maxDistanceKm, limit = "20", page = "1" } = request.query as Record<string, string>
     const limitN = Math.min(Number(limit), 50)
     const offset = (Number(page) - 1) * limitN
     const origin = lat && lng ? { lat: Number(lat), lng: Number(lng) } : null
@@ -48,6 +59,34 @@ export async function productRoutes(app: FastifyInstance) {
         return { success: true, data: rows }
       } catch {
         return { success: true, data: [] }
+      }
+    }
+
+    // Province filter requires joining through shop→community, use raw SQL path
+    // When both search and province are given (e.g. from search page), return results matching EITHER
+    if (province) {
+      const rows = await sql`
+        SELECT DISTINCT p.*, s.name AS shop_name, s.id AS shop_id_val,
+               c.name AS community_name, c.slug AS community_slug, c.province, c.district
+        FROM products p
+        JOIN shops s ON s.id = p.shop_id
+        JOIN communities c ON c.id = s.community_id
+        WHERE p.status = 'active'
+          AND (
+            c.province ILIKE ${`%${province}%`}
+            ${search ? sql`OR p.name ILIKE ${`%${search}%`}` : sql``}
+          )
+          ${category ? sql`AND p.category = ${category}` : sql``}
+        ORDER BY p.created_at DESC
+        LIMIT ${limitN} OFFSET ${offset}
+      `
+      return {
+        success: true,
+        data: rows.map((r: any) => ({
+          id: r.id, name: r.name, price: r.price, images: r.images, stock: r.stock,
+          category: r.category, status: r.status, createdAt: r.created_at,
+          shop: { id: r.shop_id_val, name: r.shop_name, community: { name: r.community_name, slug: r.community_slug, province: r.province, district: r.district } },
+        })),
       }
     }
 
@@ -180,7 +219,7 @@ export async function productRoutes(app: FastifyInstance) {
     return { success: true, data }
   })
 
-  // Get product by id
+  // Get product by id — includes sold count
   app.get("/:id", async (request, reply) => {
     const { id } = request.params as { id: string }
     const product = await db.query.products.findFirst({
@@ -188,7 +227,16 @@ export async function productRoutes(app: FastifyInstance) {
       with: { shop: { with: { community: true } } },
     })
     if (!product) return reply.code(404).send({ success: false, error: "ไม่พบสินค้า" })
-    return { success: true, data: product }
+
+    // Sold count from completed/delivered orders
+    const sold = await sql`
+      SELECT COALESCE(SUM(oi.quantity), 0)::int AS sold_count
+      FROM order_items oi
+      JOIN orders o ON o.id = oi.order_id
+      WHERE oi.product_id = ${id}
+        AND o.status IN ('paid', 'processing', 'shipped', 'delivered')
+    `
+    return { success: true, data: { ...product, soldCount: Number(sold[0]?.sold_count ?? 0) } }
   })
 
   // Create product (seller)
