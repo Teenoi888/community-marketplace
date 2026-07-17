@@ -1,12 +1,12 @@
 "use client"
-import { Suspense, useState } from "react"
+import { Suspense, useState, useRef } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { toast } from "sonner"
 import { api } from "@/lib/api"
-import { Upload, X, ArrowLeft, ChevronDown } from "lucide-react"
+import { Upload, X, ArrowLeft, ChevronDown, Bold, Italic, Plus, Trash2 } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
 
@@ -31,18 +31,68 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>
 
+// ── SKU variant types ────────────────────────────────────────────────────────
+interface VariantOption { label: string; additionalPrice: number; stock: number }
+interface VariantGroup { name: string; options: VariantOption[] }
+
 // ── Inner component (ใช้ useSearchParams ต้องห่อด้วย Suspense) ──────────────
 function NewProductForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const shopIdParam = searchParams.get("shopId") // ถ้ามาจากชุมชนอื่น จะมี shopId ส่งมา
+  const shopIdParam = searchParams.get("shopId")
   const [images, setImages] = useState<{ file: File; preview: string }[]>([])
   const [loading, setLoading] = useState(false)
+  const descRef = useRef<HTMLTextAreaElement | null>(null)
+  // SKU / variants
+  const [variants, setVariants] = useState<VariantGroup[]>([])
 
-  const { register, handleSubmit, formState: { errors } } = useForm<FormData>({
+  const { register, handleSubmit, setValue, getValues, formState: { errors } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { stock: 1 },
   })
+
+  // Must come after useForm so `register` is available
+  const descRegistration = register("description")
+
+  // ── Bold/Italic helper ───────────────────────────────────────────────────────
+  function applyFormat(marker: string) {
+    const el = descRef.current
+    if (!el) return
+    const start = el.selectionStart
+    const end = el.selectionEnd
+    const current = getValues("description") || ""
+    const selected = current.slice(start, end) || "ข้อความ"
+    const next = current.slice(0, start) + marker + selected + marker + current.slice(end)
+    setValue("description", next, { shouldDirty: true })
+    // Restore cursor after marker
+    setTimeout(() => {
+      el.focus()
+      el.setSelectionRange(start + marker.length, start + marker.length + selected.length)
+    }, 0)
+  }
+
+  // ── Variant helpers ──────────────────────────────────────────────────────────
+  function addVariantGroup() {
+    setVariants(v => [...v, { name: "", options: [{ label: "", additionalPrice: 0, stock: 0 }] }])
+  }
+  function removeVariantGroup(gi: number) {
+    setVariants(v => v.filter((_, i) => i !== gi))
+  }
+  function updateGroupName(gi: number, name: string) {
+    setVariants(v => v.map((g, i) => i === gi ? { ...g, name } : g))
+  }
+  function addOption(gi: number) {
+    setVariants(v => v.map((g, i) => i === gi ? { ...g, options: [...g.options, { label: "", additionalPrice: 0, stock: 0 }] } : g))
+  }
+  function removeOption(gi: number, oi: number) {
+    setVariants(v => v.map((g, i) => i === gi ? { ...g, options: g.options.filter((_, j) => j !== oi) } : g))
+  }
+  function updateOption(gi: number, oi: number, field: keyof VariantOption, value: string | number) {
+    setVariants(v => v.map((g, i) => i === gi
+      ? { ...g, options: g.options.map((o, j) => j === oi ? { ...o, [field]: value } : o) }
+      : g
+    ))
+  }
 
   function addImages(files: FileList | null) {
     if (!files) return
@@ -80,7 +130,7 @@ function NewProductForm() {
         }
       }
 
-      await api.post("/products", { ...data, shopId, images: imageUrls })
+      await api.post("/products", { ...data, shopId, images: imageUrls, variants })
 
       toast.success("เพิ่มสินค้าสำเร็จ!")
       router.push("/products")
@@ -124,6 +174,8 @@ function NewProductForm() {
                 </label>
               )}
             </div>
+            {/* Fix 5: Image size hint */}
+            <p className="text-xs text-gray-400 mt-2">แนะนำ 800×800px ขึ้นไป · ไฟล์ไม่เกิน 5MB · รองรับ JPG, PNG, WebP</p>
           </div>
 
           {/* Product info */}
@@ -136,8 +188,23 @@ function NewProductForm() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">รายละเอียดสินค้า</label>
-              <textarea {...register("description")} className="input" rows={3}
-                placeholder="บอกเล่าเกี่ยวกับสินค้า วิธีปลูก คุณสมบัติ ฯลฯ" />
+              {/* Fix 3: Bold/Italic mini-toolbar */}
+              <div className="flex gap-1 mb-1">
+                <button type="button" onClick={() => applyFormat("**")}
+                  className="p-1.5 border border-gray-300 rounded hover:bg-gray-100 text-gray-600" title="ตัวหนา">
+                  <Bold className="w-3.5 h-3.5" />
+                </button>
+                <button type="button" onClick={() => applyFormat("*")}
+                  className="p-1.5 border border-gray-300 rounded hover:bg-gray-100 text-gray-600" title="ตัวเอียง">
+                  <Italic className="w-3.5 h-3.5" />
+                </button>
+              </div>
+              <textarea
+                {...descRegistration}
+                ref={(el) => { descRegistration.ref(el); descRef.current = el }}
+                className="input" rows={3}
+                placeholder="บอกเล่าเกี่ยวกับสินค้า วิธีปลูก คุณสมบัติ ฯลฯ"
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -164,6 +231,68 @@ function NewProductForm() {
               </div>
               {errors.category && <p className="text-red-500 text-xs mt-1">{errors.category.message}</p>}
             </div>
+          </div>
+
+          {/* Fix 2: SKU / Variants section */}
+          <div className="card">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-semibold text-gray-800">ตัวเลือกสินค้า (SKU)</h2>
+              <button type="button" onClick={addVariantGroup}
+                className="flex items-center gap-1 text-sm text-primary-600 hover:text-primary-700 font-medium">
+                <Plus className="w-4 h-4" /> เพิ่มตัวเลือก
+              </button>
+            </div>
+            {variants.length === 0 && (
+              <p className="text-sm text-gray-400">เช่น ขนาด (S/M/L) หรือสี (แดง/น้ำเงิน) — กด "เพิ่มตัวเลือก" เพื่อเริ่ม</p>
+            )}
+            {variants.map((group, gi) => (
+              <div key={gi} className="mb-4 border border-gray-200 rounded-xl p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <input
+                    value={group.name}
+                    onChange={(e) => updateGroupName(gi, e.target.value)}
+                    className="input flex-1"
+                    placeholder="ชื่อตัวเลือก เช่น ขนาด, สี"
+                  />
+                  <button type="button" onClick={() => removeVariantGroup(gi)}
+                    className="p-1.5 text-red-400 hover:text-red-600">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
+                {group.options.map((opt, oi) => (
+                  <div key={oi} className="flex items-center gap-2 mb-2 pl-2">
+                    <input
+                      value={opt.label}
+                      onChange={(e) => updateOption(gi, oi, "label", e.target.value)}
+                      className="input flex-1"
+                      placeholder="ชื่อตัวเลือกย่อย เช่น S, แดง"
+                    />
+                    <input
+                      type="number" min="0" step="0.01"
+                      value={opt.additionalPrice}
+                      onChange={(e) => updateOption(gi, oi, "additionalPrice", Number(e.target.value))}
+                      className="input w-24"
+                      placeholder="+ราคา"
+                    />
+                    <input
+                      type="number" min="0"
+                      value={opt.stock}
+                      onChange={(e) => updateOption(gi, oi, "stock", Number(e.target.value))}
+                      className="input w-20"
+                      placeholder="สต็อก"
+                    />
+                    <button type="button" onClick={() => removeOption(gi, oi)}
+                      className="p-1 text-gray-400 hover:text-red-500">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+                <button type="button" onClick={() => addOption(gi)}
+                  className="text-xs text-primary-600 hover:underline flex items-center gap-1 pl-2 mt-1">
+                  <Plus className="w-3 h-3" /> เพิ่มค่า
+                </button>
+              </div>
+            ))}
           </div>
 
           <button type="submit" disabled={loading} className="btn-primary w-full py-4 text-base">

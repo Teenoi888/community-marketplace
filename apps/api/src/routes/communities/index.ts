@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify"
 import { z } from "zod"
 import { db } from "../../db/index.js"
 import { communities, communityMembers, shops, products, users } from "../../db/schema.js"
-import { eq, ilike, and, sql, isNotNull } from "drizzle-orm"
+import { eq, ilike, and, or, sql, isNotNull } from "drizzle-orm"
 import { requireAuth } from "../../middleware/auth.js"
 import { haversineDistanceKm } from "../../lib/geo.js"
 
@@ -71,8 +71,13 @@ export async function communityRoutes(app: FastifyInstance) {
     const offset = (Number(page) - 1) * limitN
 
     const conditions = []
-    if (province) conditions.push(eq(communities.province, province))
-    if (search) conditions.push(ilike(communities.name, `%${search}%`))
+    if (province) conditions.push(ilike(communities.province, `%${province}%`))
+    // Search by name OR province OR district so "เชียงใหม่" returns all CM communities
+    if (search) conditions.push(or(
+      ilike(communities.name, `%${search}%`),
+      ilike(communities.province, `%${search}%`),
+      ilike(communities.district, `%${search}%`),
+    ))
 
     const rows = await db.query.communities.findMany({
       where: conditions.length ? and(...conditions) : undefined,
@@ -204,6 +209,26 @@ export async function communityRoutes(app: FastifyInstance) {
     await db.update(communities).set({ memberCount: sql`${communities.memberCount} + 1` }).where(eq(communities.id, id))
 
     return { success: true, data: { role: "member" } }
+  })
+
+  // ── Leave community ────────────────────────────────────────────────────────
+  app.delete("/:id/join", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { userId } = request.user as { userId: string }
+    const { id } = request.params as { id: string }
+
+    const membership = await db.query.communityMembers.findFirst({
+      where: and(eq(communityMembers.communityId, id), eq(communityMembers.userId, userId)),
+    })
+    if (!membership) return reply.code(400).send({ success: false, error: "คุณไม่ได้เป็นสมาชิก" })
+    if (membership.role === "admin") return reply.code(403).send({ success: false, error: "ผู้ดูแลไม่สามารถออกจากชุมชนได้" })
+
+    await db.delete(communityMembers)
+      .where(and(eq(communityMembers.communityId, id), eq(communityMembers.userId, userId)))
+    await db.update(communities)
+      .set({ memberCount: sql`GREATEST(${communities.memberCount} - 1, 0)` })
+      .where(eq(communities.id, id))
+
+    return { success: true }
   })
 
   // ── Open a shop inside a community (member → seller) ──────────────────────
