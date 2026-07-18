@@ -9,6 +9,14 @@ import postgres from "postgres"
 
 const sql = postgres(process.env.DATABASE_URL!, { max: 1 })
 
+/** postgres.js returns jsonb columns as strings when using raw SQL — parse safely */
+function parseImages(val: any): string[] {
+  if (!val) return []
+  if (Array.isArray(val)) return val
+  if (typeof val === "string") { try { return JSON.parse(val) } catch { return [] } }
+  return []
+}
+
 const variantOptionSchema = z.object({
   label: z.string(),
   additionalPrice: z.number().default(0),
@@ -83,7 +91,7 @@ export async function productRoutes(app: FastifyInstance) {
       return {
         success: true,
         data: rows.map((r: any) => ({
-          id: r.id, name: r.name, price: r.price, images: r.images, stock: r.stock,
+          id: r.id, name: r.name, price: r.price, images: parseImages(r.images), stock: r.stock,
           category: r.category, status: r.status, createdAt: r.created_at,
           shop: { id: r.shop_id_val, name: r.shop_name, community: { name: r.community_name, slug: r.community_slug, province: r.province, district: r.district } },
         })),
@@ -152,7 +160,7 @@ export async function productRoutes(app: FastifyInstance) {
       id: r.id,
       name: r.name,
       price: r.price,
-      images: r.images || [],
+      images: parseImages(r.images),
       stock: r.stock,
       category: r.category,
       orderCount: r.order_count,
@@ -205,7 +213,7 @@ export async function productRoutes(app: FastifyInstance) {
       id: r.id,
       name: r.name,
       price: r.price,
-      images: r.images || [],
+      images: parseImages(r.images),
       stock: r.stock,
       category: r.category,
       reviewCount: r.review_count,
