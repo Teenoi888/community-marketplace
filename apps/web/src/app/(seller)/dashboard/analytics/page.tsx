@@ -3,10 +3,6 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { ArrowLeft, TrendingUp, ShoppingBag, BarChart2, Award } from "lucide-react"
 import { api } from "@/lib/api"
-import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, BarChart, Bar, Cell
-} from "recharts"
 
 type Period = "7d" | "30d" | "3m"
 
@@ -39,8 +35,6 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: "#ef4444",
 }
 
-const CHART_COLORS = ["#16a34a", "#059669", "#10b981", "#34d399", "#6ee7b7"]
-
 function fmt(n: number) {
   return new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", minimumFractionDigits: 0 }).format(n)
 }
@@ -48,6 +42,78 @@ function fmt(n: number) {
 function fmtDay(day: string) {
   const d = new Date(day)
   return `${d.getDate()}/${d.getMonth() + 1}`
+}
+
+/** Native SVG area chart — no external deps */
+function RevenueChart({ data }: { data: { day: string; revenue: number }[] }) {
+  const W = 600, H = 180, PAD = { top: 10, right: 10, bottom: 30, left: 52 }
+  const inner = { w: W - PAD.left - PAD.right, h: H - PAD.top - PAD.bottom }
+  const maxRev = Math.max(...data.map(d => d.revenue), 1)
+  const x = (i: number) => PAD.left + (i / (data.length - 1 || 1)) * inner.w
+  const y = (v: number) => PAD.top + inner.h - (v / maxRev) * inner.h
+
+  const points = data.map((d, i) => `${x(i)},${y(d.revenue)}`).join(" ")
+  const area = `M${x(0)},${y(0)} ` + data.map((d, i) => `L${x(i)},${y(d.revenue)}`).join(" ") +
+    ` L${x(data.length - 1)},${PAD.top + inner.h} L${x(0)},${PAD.top + inner.h} Z`
+
+  // Y axis labels
+  const yTicks = [0, 0.25, 0.5, 0.75, 1].map(f => Math.round(maxRev * f))
+
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} className="w-full" style={{ height: 180 }}>
+      <defs>
+        <linearGradient id="rg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="#16a34a" stopOpacity={0.18} />
+          <stop offset="100%" stopColor="#16a34a" stopOpacity={0} />
+        </linearGradient>
+      </defs>
+      {/* Grid */}
+      {yTicks.map(t => (
+        <g key={t}>
+          <line x1={PAD.left} x2={PAD.left + inner.w} y1={y(t)} y2={y(t)} stroke="#f0f0f0" />
+          <text x={PAD.left - 4} y={y(t) + 4} textAnchor="end" fontSize={10} fill="#9ca3af">
+            {t >= 1000 ? `${(t / 1000).toFixed(0)}k` : t}
+          </text>
+        </g>
+      ))}
+      {/* Area fill */}
+      <path d={area} fill="url(#rg)" />
+      {/* Line */}
+      <polyline points={points} fill="none" stroke="#16a34a" strokeWidth={2} strokeLinejoin="round" />
+      {/* X labels — show every Nth to avoid overlap */}
+      {data.map((d, i) => {
+        const step = Math.ceil(data.length / 8)
+        if (i % step !== 0 && i !== data.length - 1) return null
+        return (
+          <text key={d.day} x={x(i)} y={H - 8} textAnchor="middle" fontSize={10} fill="#9ca3af">
+            {fmtDay(d.day)}
+          </text>
+        )
+      })}
+    </svg>
+  )
+}
+
+/** CSS bar chart for status breakdown */
+function StatusChart({ data }: { data: { status: string; count: number }[] }) {
+  const max = Math.max(...data.map(d => d.count), 1)
+  return (
+    <div className="space-y-2">
+      {data.map(d => (
+        <div key={d.status} className="flex items-center gap-2">
+          <span className="text-xs text-gray-500 w-20 flex-shrink-0 truncate">{STATUS_LABELS[d.status] ?? d.status}</span>
+          <div className="flex-1 bg-gray-100 rounded-full h-5 overflow-hidden">
+            <div
+              className="h-5 rounded-full transition-all duration-500 flex items-center justify-end pr-2"
+              style={{ width: `${(d.count / max) * 100}%`, backgroundColor: STATUS_COLORS[d.status] ?? "#9ca3af", minWidth: 28 }}
+            >
+              <span className="text-white text-xs font-semibold">{d.count}</span>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 export default function AnalyticsPage() {
@@ -147,24 +213,7 @@ export default function AnalyticsPage() {
               {data.dailyRevenue.length === 0 ? (
                 <div className="text-center py-10 text-gray-400 text-sm">ยังไม่มีข้อมูลในช่วงนี้</div>
               ) : (
-                <ResponsiveContainer width="100%" height={220}>
-                  <AreaChart data={data.dailyRevenue} margin={{ top: 5, right: 10, left: 0, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="revenueGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#16a34a" stopOpacity={0.15} />
-                        <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="day" tickFormatter={fmtDay} tick={{ fontSize: 11 }} />
-                    <YAxis tickFormatter={v => `฿${v >= 1000 ? (v / 1000).toFixed(0) + "k" : v}`} tick={{ fontSize: 11 }} width={50} />
-                    <Tooltip
-                      formatter={(v: number) => [fmt(v), "ยอดขาย"]}
-                      labelFormatter={(l) => `วันที่ ${fmtDay(l)}`}
-                    />
-                    <Area type="monotone" dataKey="revenue" stroke="#16a34a" strokeWidth={2} fill="url(#revenueGrad)" />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <RevenueChart data={data.dailyRevenue} />
               )}
             </div>
 
@@ -200,38 +249,4 @@ export default function AnalyticsPage() {
               <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm">
                 <h2 className="font-semibold text-gray-800 mb-4">สถานะออเดอร์</h2>
                 {data.statusBreakdown.length === 0 ? (
-                  <div className="text-center py-6 text-gray-400 text-sm">ยังไม่มีข้อมูล</div>
-                ) : (
-                  <ResponsiveContainer width="100%" height={170}>
-                    <BarChart data={data.statusBreakdown} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
-                      <XAxis dataKey="status" tickFormatter={s => STATUS_LABELS[s] ?? s} tick={{ fontSize: 10 }} />
-                      <YAxis tick={{ fontSize: 11 }} />
-                      <Tooltip
-                        formatter={(v: number) => [v + " รายการ", "จำนวน"]}
-                        labelFormatter={(l) => STATUS_LABELS[l] ?? l}
-                      />
-                      <Bar dataKey="count" radius={[4, 4, 0, 0]}>
-                        {data.statusBreakdown.map((entry) => (
-                          <Cell key={entry.status} fill={STATUS_COLORS[entry.status] ?? "#9ca3af"} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
-              </div>
-            </div>
-
-          </div>
-        )}
-
-        {!loading && !data && (
-          <div className="text-center py-20 text-gray-400">
-            <BarChart2 className="w-12 h-12 mx-auto mb-3 opacity-30" />
-            <p>ยังไม่มีข้อมูล — เริ่มขายสินค้าเพื่อดู Analytics</p>
-          </div>
-        )}
-
-      </div>
-    </div>
-  )
-}
+                  <div className="text-center py-6 text-gray-400 text-sm">ยังไ�
