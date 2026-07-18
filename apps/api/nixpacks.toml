@@ -4,3 +4,5 @@ cmds = ["pnpm install --no-frozen-lockfile"]
 # Updated: recharts removed, @types/react specifier fixed
 
 # mobile @types/react fixed
+
+# fixed: null bytes removed from web/package.json
