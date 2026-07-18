@@ -1,8 +1,8 @@
 [phases.install]
 cmds = ["pnpm install --no-frozen-lockfile"]
 
-# Updated: recharts removed, @types/react specifier fixed
+[phases.build]
+cmds = ["pnpm run build"]
 
-# mobile @types/react fixed
-
-# fixed: null bytes removed from web/package.json
+[start]
+cmd = "node dist/index.js"

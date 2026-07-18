@@ -100,7 +100,8 @@ export default function ProductDetailPage() {
   useEffect(() => {
     api.get(`/products/${id}`)
       .then(r => {
-        const p = r.data.data
+        const p = r.data?.data
+        if (!p) return // show "not found" state, don't redirect
         setProduct(p)
         // Fetch shop rating once we know the shop id
         if (p?.shop?.id) {
@@ -109,7 +110,7 @@ export default function ProductDetailPage() {
             .catch(() => {})
         }
       })
-      .catch(() => router.push("/"))
+      .catch(() => {}) // don't redirect on error — just show "not found" state
       .finally(() => setLoading(false))
   }, [id])
 
