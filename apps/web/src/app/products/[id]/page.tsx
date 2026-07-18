@@ -228,7 +228,16 @@ export default function ProductDetailPage() {
     )
   }
 
-  if (!product) return null
+  if (!product) return (
+    <main className="min-h-screen bg-gray-50">
+      <MainNav />
+      <div className="flex flex-col items-center justify-center h-64 gap-3 text-gray-400">
+        <Package className="w-12 h-12 opacity-30" />
+        <p className="text-lg">ไม่พบสินค้า</p>
+        <button onClick={() => router.back()} className="text-sm text-primary-600 hover:underline">กลับหน้าหลัก</button>
+      </div>
+    </main>
+  )
 
   const price = parseFloat(product.price)
 
