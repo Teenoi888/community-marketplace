@@ -1,7 +1,7 @@
 "use client"
 import Link from "next/link"
-import Image from "next/image"
 import { useRouter } from "next/navigation"
+import { ProductImage } from "@/components/marketplace/ProductImage"
 import { useEffect } from "react"
 import { ShoppingCart, MapPin, Heart } from "lucide-react"
 import { useCartStore } from "@/lib/store/cart"
@@ -64,16 +64,11 @@ export function ProductCard({ product }: ProductCardProps) {
       <div className="card hover:shadow-md transition-shadow p-0 overflow-hidden">
         {/* Image */}
         <div className="relative aspect-square bg-gray-100 overflow-hidden">
-          {product.images[0] ? (
-            <Image
-              src={product.images[0]}
-              alt={product.name}
-              fill
-              className="object-cover group-hover:scale-105 transition-transform duration-300"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-4xl">🛒</div>
-          )}
+          <ProductImage
+            src={product.images[0]}
+            alt={product.name}
+            className="group-hover:scale-105 transition-transform duration-300"
+          />
           {product.stock === 0 && (
             <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
               <span className="text-white text-sm font-semibold">สินค้าหมด</span>
