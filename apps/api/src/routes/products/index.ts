@@ -227,24 +227,58 @@ export async function productRoutes(app: FastifyInstance) {
     return { success: true, data }
   })
 
-  // Get product by id — includes sold count
+  // Get product by id — raw SQL to match other routes (avoids Drizzle ORM query builder issues)
   app.get("/:id", async (request, reply) => {
     const { id } = request.params as { id: string }
-    const product = await db.query.products.findFirst({
-      where: eq(products.id, id),
-      with: { shop: { with: { community: true } } },
-    })
-    if (!product) return reply.code(404).send({ success: false, error: "ไม่พบสินค้า" })
-
-    // Sold count from completed/delivered orders
-    const sold = await sql`
-      SELECT COALESCE(SUM(oi.quantity), 0)::int AS sold_count
-      FROM order_items oi
-      JOIN orders o ON o.id = oi.order_id
-      WHERE oi.product_id = ${id}
-        AND o.status IN ('paid', 'processing', 'shipped', 'delivered')
+    const rows = await sql`
+      SELECT
+        p.id, p.name, p.description, p.price, p.stock, p.images, p.category,
+        p.status, p.variants, p.created_at,
+        s.id AS shop_id, s.name AS shop_name, s.owner_id AS shop_owner_id,
+        c.id AS community_id, c.name AS community_name,
+        c.slug AS community_slug, c.province, c.district,
+        COALESCE(SUM(oi.quantity) FILTER (
+          WHERE o.status IN ('paid', 'processing', 'shipped', 'delivered', 'completed')
+        ), 0)::int AS sold_count
+      FROM products p
+      JOIN shops s ON s.id = p.shop_id
+      JOIN communities c ON c.id = s.community_id
+      LEFT JOIN order_items oi ON oi.product_id = p.id
+      LEFT JOIN orders o ON o.id = oi.order_id
+      WHERE p.id = ${id}
+      GROUP BY p.id, s.id, s.name, s.owner_id, c.id, c.name, c.slug, c.province, c.district
+      LIMIT 1
     `
-    return { success: true, data: { ...product, soldCount: Number(sold[0]?.sold_count ?? 0) } }
+    if (!rows.length) return reply.code(404).send({ success: false, error: "ไม่พบสินค้า" })
+    const r = rows[0]
+    return {
+      success: true,
+      data: {
+        id: r.id,
+        name: r.name,
+        description: r.description,
+        price: r.price,
+        stock: r.stock,
+        images: parseImages(r.images),
+        category: r.category,
+        status: r.status,
+        variants: r.variants ? (typeof r.variants === "string" ? JSON.parse(r.variants) : r.variants) : [],
+        createdAt: r.created_at,
+        soldCount: r.sold_count,
+        shop: {
+          id: r.shop_id,
+          name: r.shop_name,
+          ownerId: r.shop_owner_id,
+          community: {
+            id: r.community_id,
+            name: r.community_name,
+            slug: r.community_slug,
+            province: r.province,
+            district: r.district,
+          },
+        },
+      },
+    }
   })
 
   // Create product (seller)
