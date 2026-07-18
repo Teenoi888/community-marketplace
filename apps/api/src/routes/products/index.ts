@@ -238,7 +238,7 @@ export async function productRoutes(app: FastifyInstance) {
         c.id AS community_id, c.name AS community_name,
         c.slug AS community_slug, c.province, c.district,
         COALESCE(SUM(oi.quantity) FILTER (
-          WHERE o.status IN ('paid', 'processing', 'shipped', 'delivered', 'completed')
+          WHERE o.status IN ('paid', 'preparing', 'shipped', 'delivered')
         ), 0)::int AS sold_count
       FROM products p
       JOIN shops s ON s.id = p.shop_id
