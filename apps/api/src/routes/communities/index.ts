@@ -2,8 +2,11 @@ import type { FastifyInstance } from "fastify"
 import { z } from "zod"
 import { db } from "../../db/index.js"
 import { communities, communityMembers, shops, products, users } from "../../db/schema.js"
-import { eq, ilike, and, sql } from "drizzle-orm"
+import { eq, ilike, and, or, sql, isNotNull } from "drizzle-orm"
 import { requireAuth } from "../../middleware/auth.js"
+import { haversineDistanceKm } from "../../lib/geo.js"
+
+const ZONE_RADIUS_KM = 10
 
 const createCommunitySchema = z.object({
   name: z.string().min(3),
@@ -13,9 +16,53 @@ const createCommunitySchema = z.object({
   description: z.string().optional(),
   logoUrl: z.string().url().optional(),
   bannerUrl: z.string().url().optional(),
+  lat: z.number().min(-90).max(90),
+  lng: z.number().min(-180).max(180),
 })
 
 export async function communityRoutes(app: FastifyInstance) {
+
+  // ── Check zone availability ─────────────────────────────────────────────────
+  // GET /communities/check-zone?lat=13.7&lng=100.5
+  app.get("/check-zone", async (request, reply) => {
+    const { lat, lng } = request.query as { lat?: string; lng?: string }
+    if (!lat || !lng) return reply.code(400).send({ success: false, error: "ต้องระบุ lat และ lng" })
+
+    const latN = parseFloat(lat)
+    const lngN = parseFloat(lng)
+    if (isNaN(latN) || isNaN(lngN)) return reply.code(400).send({ success: false, error: "lat/lng ไม่ถูกต้อง" })
+
+    const existingWithCoords = await db.select({
+      id: communities.id,
+      name: communities.name,
+      lat: communities.lat,
+      lng: communities.lng,
+    })
+    .from(communities)
+    .where(and(isNotNull(communities.lat), isNotNull(communities.lng)))
+
+    let nearest: { name: string; distanceKm: number } | null = null
+    for (const c of existingWithCoords) {
+      if (c.lat == null || c.lng == null) continue
+      const dist = haversineDistanceKm({ lat: latN, lng: lngN }, { lat: c.lat, lng: c.lng })
+      if (dist < ZONE_RADIUS_KM) {
+        if (!nearest || dist < nearest.distanceKm) {
+          nearest = { name: c.name, distanceKm: Math.round(dist * 10) / 10 }
+        }
+      }
+    }
+
+    if (nearest) {
+      return {
+        success: true,
+        available: false,
+        conflict: nearest,
+        message: `มีชุมชน "${nearest.name}" อยู่ห่างแค่ ${nearest.distanceKm} km — ต้องห่างกันอย่างน้อย ${ZONE_RADIUS_KM} km`,
+      }
+    }
+
+    return { success: true, available: true, message: "พื้นที่นี้ยังว่างอยู่ สามารถสร้างชุมชนได้" }
+  })
 
   // List communities
   app.get("/", async (request) => {
@@ -24,8 +71,13 @@ export async function communityRoutes(app: FastifyInstance) {
     const offset = (Number(page) - 1) * limitN
 
     const conditions = []
-    if (province) conditions.push(eq(communities.province, province))
-    if (search) conditions.push(ilike(communities.name, `%${search}%`))
+    if (province) conditions.push(ilike(communities.province, `%${province}%`))
+    // Search by name OR province OR district so "เชียงใหม่" returns all CM communities
+    if (search) conditions.push(or(
+      ilike(communities.name, `%${search}%`),
+      ilike(communities.province, `%${search}%`),
+      ilike(communities.district, `%${search}%`),
+    ))
 
     const rows = await db.query.communities.findMany({
       where: conditions.length ? and(...conditions) : undefined,
@@ -159,6 +211,26 @@ export async function communityRoutes(app: FastifyInstance) {
     return { success: true, data: { role: "member" } }
   })
 
+  // ── Leave community ────────────────────────────────────────────────────────
+  app.delete("/:id/join", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { userId } = request.user as { userId: string }
+    const { id } = request.params as { id: string }
+
+    const membership = await db.query.communityMembers.findFirst({
+      where: and(eq(communityMembers.communityId, id), eq(communityMembers.userId, userId)),
+    })
+    if (!membership) return reply.code(400).send({ success: false, error: "คุณไม่ได้เป็นสมาชิก" })
+    if (membership.role === "admin") return reply.code(403).send({ success: false, error: "ผู้ดูแลไม่สามารถออกจากชุมชนได้" })
+
+    await db.delete(communityMembers)
+      .where(and(eq(communityMembers.communityId, id), eq(communityMembers.userId, userId)))
+    await db.update(communities)
+      .set({ memberCount: sql`GREATEST(${communities.memberCount} - 1, 0)` })
+      .where(eq(communities.id, id))
+
+    return { success: true }
+  })
+
   // ── Open a shop inside a community (member → seller) ──────────────────────
   app.post("/:id/open-shop", { preHandler: [requireAuth] }, async (request, reply) => {
     const { userId } = request.user as { userId: string }
@@ -208,6 +280,28 @@ export async function communityRoutes(app: FastifyInstance) {
     }
 
     const body = createCommunitySchema.parse(request.body)
+
+    // ── Zone check: ห้ามสร้างชุมชนในรัศมี 10 km จากชุมชนที่มีอยู่ ──────────
+    const existingWithCoords = await db.select({
+      id: communities.id,
+      name: communities.name,
+      lat: communities.lat,
+      lng: communities.lng,
+    })
+    .from(communities)
+    .where(and(isNotNull(communities.lat), isNotNull(communities.lng)))
+
+    for (const c of existingWithCoords) {
+      if (c.lat == null || c.lng == null) continue
+      const dist = haversineDistanceKm({ lat: body.lat, lng: body.lng }, { lat: c.lat, lng: c.lng })
+      if (dist < ZONE_RADIUS_KM) {
+        return reply.code(409).send({
+          success: false,
+          error: `ไม่สามารถสร้างชุมชนได้ — มีชุมชน "${c.name}" อยู่ห่างแค่ ${Math.round(dist * 10) / 10} km (ต้องห่างกันอย่างน้อย ${ZONE_RADIUS_KM} km)`,
+        })
+      }
+    }
+
     const slug = body.name
       .toLowerCase()
       .replace(/\s+/g, "-")

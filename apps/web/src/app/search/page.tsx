@@ -27,9 +27,12 @@ function SearchResults() {
       return
     }
     setLoading(true)
+    // Pass search term as both `search` (name match) and `province` (location match)
+    // so searching "เชียงใหม่" returns both name-matched AND province-matched results
+    const enc = encodeURIComponent(q)
     Promise.all([
-      api.get(`/products?search=${encodeURIComponent(q)}&limit=24`),
-      api.get(`/communities?search=${encodeURIComponent(q)}&limit=12`),
+      api.get(`/products?search=${enc}&province=${enc}&limit=24`),
+      api.get(`/communities?search=${enc}&limit=12`),
     ])
       .then(([p, c]) => {
         setProducts(p.data.data || [])

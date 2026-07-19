@@ -24,6 +24,12 @@ type FormData = z.infer<typeof schema>
 
 const emailSchema = z.string().email("อีเมลไม่ถูกต้อง")
 
+function isInWebView() {
+  if (typeof navigator === "undefined") return false
+  const ua = navigator.userAgent
+  return /Line\/|FBAN|FBAV|Instagram|MicroMessenger|\bwv\b|WebView/i.test(ua)
+}
+
 export default function LoginPage() {
   const router = useRouter()
   const setUser = useAuthStore((s) => s.setUser)
@@ -32,6 +38,9 @@ export default function LoginPage() {
   })
   const { onChange: onPhoneChange, ...phoneField } = register("phone")
   const [showPassword, setShowPassword] = useState(false)
+  const [webView, setWebView] = useState(false)
+
+  useEffect(() => { setWebView(isInWebView()) }, [])
 
   const [loginMethod, setLoginMethod] = useState<"phone" | "email">("phone")
   const [email, setEmail] = useState("")
@@ -107,6 +116,17 @@ export default function LoginPage() {
           <p className="text-gray-500 text-sm mt-1">เข้าสู่ระบบเพื่อซื้อ-ขายสินค้า</p>
         </div>
 
+        {/* WebView warning banner */}
+        {webView && (
+          <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-800">
+            <p className="font-semibold mb-1">⚠️ กรุณาเปิดใน Browser ภายนอก</p>
+            <p className="text-xs text-amber-700">
+              การเข้าสู่ระบบด้วย Google หรือ Facebook ไม่รองรับใน LINE / Facebook App
+              กรุณาคัดลอก URL แล้วเปิดใน Chrome หรือ Safari
+            </p>
+          </div>
+        )}
+
         {/* Social Login */}
         <div className="mb-4">
           <div className="grid grid-cols-3 gap-2.5 mb-2.5">
@@ -124,20 +144,42 @@ export default function LoginPage() {
               </span>
               <span className="text-sm font-semibold text-gray-800">LINE</span>
             </a>
-            <a
-              href={`${process.env.NEXT_PUBLIC_API_URL}/google/auth`}
-              className="flex items-center justify-center gap-1.5 w-full py-3 px-2 bg-white border border-gray-200 shadow-sm hover:bg-gray-50 rounded-xl transition-colors"
-            >
-              <FcGoogle className="w-6 h-6 shrink-0" />
-              <span className="text-sm font-semibold text-gray-800">Google</span>
-            </a>
-            <a
-              href={`${process.env.NEXT_PUBLIC_API_URL}/facebook/auth`}
-              className="flex items-center justify-center gap-1.5 w-full py-3 px-2 bg-white border border-gray-200 shadow-sm hover:bg-gray-50 rounded-xl transition-colors"
-            >
-              <FaFacebook className="w-6 h-6 shrink-0 text-[#1877F2]" />
-              <span className="text-sm font-semibold text-gray-800">Facebook</span>
-            </a>
+            {webView ? (
+              <button
+                type="button"
+                onClick={() => toast.error("กรุณาเปิดลิงก์ใน Chrome หรือ Safari ก่อนเข้าสู่ระบบด้วย Google")}
+                className="flex items-center justify-center gap-1.5 w-full py-3 px-2 bg-gray-100 border border-gray-200 rounded-xl opacity-60 cursor-not-allowed"
+              >
+                <FcGoogle className="w-6 h-6 shrink-0" />
+                <span className="text-sm font-semibold text-gray-500">Google</span>
+              </button>
+            ) : (
+              <a
+                href={`${process.env.NEXT_PUBLIC_API_URL}/google/auth`}
+                className="flex items-center justify-center gap-1.5 w-full py-3 px-2 bg-white border border-gray-200 shadow-sm hover:bg-gray-50 rounded-xl transition-colors"
+              >
+                <FcGoogle className="w-6 h-6 shrink-0" />
+                <span className="text-sm font-semibold text-gray-800">Google</span>
+              </a>
+            )}
+            {webView ? (
+              <button
+                type="button"
+                onClick={() => toast.error("กรุณาเปิดลิงก์ใน Chrome หรือ Safari ก่อนเข้าสู่ระบบด้วย Facebook")}
+                className="flex items-center justify-center gap-1.5 w-full py-3 px-2 bg-gray-100 border border-gray-200 rounded-xl opacity-60 cursor-not-allowed"
+              >
+                <FaFacebook className="w-6 h-6 shrink-0 text-[#1877F2]" />
+                <span className="text-sm font-semibold text-gray-500">Facebook</span>
+              </button>
+            ) : (
+              <a
+                href={`${process.env.NEXT_PUBLIC_API_URL}/facebook/auth`}
+                className="flex items-center justify-center gap-1.5 w-full py-3 px-2 bg-white border border-gray-200 shadow-sm hover:bg-gray-50 rounded-xl transition-colors"
+              >
+                <FaFacebook className="w-6 h-6 shrink-0 text-[#1877F2]" />
+                <span className="text-sm font-semibold text-gray-800">Facebook</span>
+              </a>
+            )}
           </div>
         </div>
 

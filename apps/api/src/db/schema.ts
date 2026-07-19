@@ -101,6 +101,7 @@ export const products = pgTable("products", {
   price: numeric("price", { precision: 12, scale: 2 }).notNull(),
   stock: integer("stock").default(0).notNull(),
   images: jsonb("images").$type<string[]>().default([]).notNull(),
+  variants: jsonb("variants").$type<{ name: string; options: { label: string; additionalPrice: number; stock: number }[] }[]>().default([]).notNull(),
   category: text("category").notNull(),
   status: productStatusEnum("status").default("active").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
@@ -181,6 +182,34 @@ export const adminActivityLogs = pgTable("admin_activity_logs", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 })
 
+export const stockLogs = pgTable("stock_logs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  productId: uuid("product_id").references(() => products.id, { onDelete: "cascade" }).notNull(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+  delta: integer("delta").notNull(),
+  reason: text("reason").default("manual").notNull(),
+  note: text("note"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+})
+
+export const wishlistItems = pgTable("wishlist_items", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
+  productId: uuid("product_id").references(() => products.id, { onDelete: "cascade" }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+})
+
+export const flashSales = pgTable("flash_sales", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  productId: uuid("product_id").references(() => products.id, { onDelete: "cascade" }).notNull(),
+  shopId: uuid("shop_id").references(() => shops.id, { onDelete: "cascade" }).notNull(),
+  discountPct: integer("discount_pct").notNull(),
+  startsAt: timestamp("starts_at").notNull(),
+  endsAt: timestamp("ends_at").notNull(),
+  isActive: boolean("is_active").default(true).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+})
+
 export const userAddresses = pgTable("user_addresses", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }).notNull(),
@@ -232,8 +261,26 @@ export const shopsRelations = relations(shops, ({ one, many }) => ({
   products: many(products),
 }))
 
-export const productsRelations = relations(products, ({ one }) => ({
+export const productsRelations = relations(products, ({ one, many }) => ({
   shop: one(shops, { fields: [products.shopId], references: [shops.id] }),
+  stockLogs: many(stockLogs),
+  wishlistItems: many(wishlistItems),
+  flashSales: many(flashSales),
+}))
+
+export const stockLogsRelations = relations(stockLogs, ({ one }) => ({
+  product: one(products, { fields: [stockLogs.productId], references: [products.id] }),
+  user: one(users, { fields: [stockLogs.userId], references: [users.id] }),
+}))
+
+export const wishlistItemsRelations = relations(wishlistItems, ({ one }) => ({
+  user: one(users, { fields: [wishlistItems.userId], references: [users.id] }),
+  product: one(products, { fields: [wishlistItems.productId], references: [products.id] }),
+}))
+
+export const flashSalesRelations = relations(flashSales, ({ one }) => ({
+  product: one(products, { fields: [flashSales.productId], references: [products.id] }),
+  shop: one(shops, { fields: [flashSales.shopId], references: [shops.id] }),
 }))
 
 export const ordersRelations = relations(orders, ({ one, many }) => ({

@@ -1,3 +1,4 @@
+# Build: pnpm install uses --no-frozen-lockfile to allow monorepo lockfile flexibility
 FROM node:20-alpine AS base
 RUN npm install -g pnpm@9
 
@@ -6,7 +7,7 @@ WORKDIR /app
 COPY package.json pnpm-workspace.yaml turbo.json ./
 COPY apps/api/package.json ./apps/api/
 COPY packages/types/package.json ./packages/types/
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --no-frozen-lockfile
 
 FROM base AS builder
 WORKDIR /app

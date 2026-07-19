@@ -5,6 +5,24 @@ import { orders, orderItems, products, shops } from "../../db/schema.js"
 import { eq, sql } from "drizzle-orm"
 import { requireAuth } from "../../middleware/auth.js"
 import { notifyOrderStatus } from "../../lib/notify.js"
+import postgres from "postgres"
+
+const rawSql = postgres(process.env.DATABASE_URL!, { max: 1 })
+
+async function sendLineNotify(token: string, message: string) {
+  try {
+    await fetch("https://notify-api.line.me/api/notify", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: new URLSearchParams({ message }),
+    })
+  } catch (e) {
+    console.warn("LINE Notify failed:", e)
+  }
+}
 
 const STATUS_LABELS: Record<string, string> = {
   pending_payment: "รอชำระเงิน",
@@ -182,6 +200,80 @@ export async function orderRoutes(app: FastifyInstance) {
     }
   })
 
+  // ── Analytics: revenue trend + top products ────────────────────────────────
+  // GET /orders/shop/analytics?period=7d|30d|3m
+  app.get("/shop/analytics", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { userId } = request.user as { userId: string }
+    const shop = await db.query.shops.findFirst({ where: eq(shops.ownerId, userId) })
+    if (!shop) return reply.code(404).send({ success: false, error: "ไม่พบร้านค้า" })
+
+    const { period = "30d" } = request.query as { period?: string }
+    const days = period === "7d" ? 7 : period === "3m" ? 90 : 30
+
+    // Daily revenue for the past N days
+    const dailyRevenue = await rawSql`
+      SELECT
+        DATE(created_at AT TIME ZONE 'Asia/Bangkok') AS day,
+        COUNT(*)::int AS order_count,
+        COALESCE(SUM(total::numeric), 0)::float AS revenue
+      FROM orders
+      WHERE shop_id = ${shop.id}
+        AND status IN ('paid','preparing','shipped','delivered','completed')
+        AND created_at >= NOW() - (${days} || ' days')::interval
+      GROUP BY day
+      ORDER BY day ASC
+    `
+
+    // Top products by revenue
+    const topProducts = await rawSql`
+      SELECT
+        oi.product_name,
+        SUM(oi.qty)::int AS total_qty,
+        SUM(oi.qty * oi.price_snapshot::numeric)::float AS total_revenue
+      FROM order_items oi
+      JOIN orders o ON o.id = oi.order_id
+      WHERE o.shop_id = ${shop.id}
+        AND o.status IN ('paid','preparing','shipped','delivered','completed')
+        AND o.created_at >= NOW() - (${days} || ' days')::interval
+      GROUP BY oi.product_name
+      ORDER BY total_revenue DESC
+      LIMIT 5
+    `
+
+    // Summary totals
+    const summary = await rawSql`
+      SELECT
+        COUNT(*)::int AS total_orders,
+        COALESCE(SUM(total::numeric), 0)::float AS total_revenue,
+        COALESCE(AVG(total::numeric), 0)::float AS avg_order_value
+      FROM orders
+      WHERE shop_id = ${shop.id}
+        AND status IN ('paid','preparing','shipped','delivered','completed')
+        AND created_at >= NOW() - (${days} || ' days')::interval
+    `
+
+    // Status breakdown
+    const statusBreakdown = await rawSql`
+      SELECT status, COUNT(*)::int AS count
+      FROM orders
+      WHERE shop_id = ${shop.id}
+        AND created_at >= NOW() - (${days} || ' days')::interval
+      GROUP BY status
+    `
+
+    return {
+      success: true,
+      data: {
+        period,
+        days,
+        summary: summary[0] ?? { total_orders: 0, total_revenue: 0, avg_order_value: 0 },
+        dailyRevenue,
+        topProducts,
+        statusBreakdown,
+      }
+    }
+  })
+
   // Get orders for my shop (seller)
   app.get("/shop", { preHandler: [requireAuth] }, async (request) => {
     const { userId } = request.user as { userId: string }
@@ -217,19 +309,64 @@ export async function orderRoutes(app: FastifyInstance) {
 
   // Update tracking number (seller) — auto-sets status to "shipped"
   app.patch("/:id/tracking", { preHandler: [requireAuth] }, async (request) => {
+    const { userId } = request.user as { userId: string }
     const { id } = request.params as { id: string }
-    const { trackingNumber, logisticsProvider } = request.body as { trackingNumber: string; logisticsProvider: string }
+    const { trackingNumber, logisticsProvider, note } = request.body as {
+      trackingNumber: string
+      logisticsProvider: string
+      note?: string
+    }
     const [updated] = await db.update(orders)
       .set({ trackingNumber, logisticsProvider, status: "shipped" as any, updatedAt: new Date() })
       .where(eq(orders.id, id))
       .returning()
 
+    const isLineCommunity = logisticsProvider === "ส่งผ่านชุมชน (LINE)"
+
+    // Notify buyer
     await notifyOrderStatus({
       userId: updated.buyerId,
       orderId: updated.id,
       title: `ออเดอร์ #${updated.id.slice(0, 8).toUpperCase()} — จัดส่งแล้ว`,
-      body: `พัสดุถูกส่งผ่าน ${logisticsProvider} เลขพัสดุ ${trackingNumber}`,
+      body: isLineCommunity
+        ? "ไรเดอร์ชุมชนรับงานแล้ว กำลังนำส่งถึงคุณ"
+        : `พัสดุถูกส่งผ่าน ${logisticsProvider} เลขพัสดุ ${trackingNumber}`,
     })
+
+    // If LINE community delivery → send LINE Notify to the group
+    if (isLineCommunity) {
+      try {
+        const shop = await rawSql`
+          SELECT s.line_notify_token, s.name,
+                 o.delivery_address, o.id as order_id
+          FROM shops s
+          JOIN orders o ON o.shop_id = s.id
+          WHERE s.owner_id = ${userId} AND o.id = ${id}
+          LIMIT 1
+        `
+        const token = shop[0]?.line_notify_token
+        if (token) {
+          const addr = shop[0].delivery_address as any
+          const items = await rawSql`
+            SELECT product_name, qty FROM order_items WHERE order_id = ${id}
+          `
+          const itemList = items.map((i: any) => `${i.product_name} x${i.qty}`).join(", ")
+          const addrStr = `${addr.address} ${addr.district} ${addr.province} ${addr.zip_code || addr.zipCode || ""}`
+          const msg = [
+            "",
+            `📦 มีงานส่ง! #${id.slice(0, 8).toUpperCase()}`,
+            `🛍 สินค้า: ${itemList}`,
+            `📍 ที่อยู่: ${addrStr}`,
+            `👤 ผู้รับ: ${addr.name} ${addr.phone}`,
+            note ? `💬 หมายเหตุ: ${note}` : "",
+            `✅ ตอบกลับข้อความนี้เพื่อรับงาน`,
+          ].filter(Boolean).join("\n")
+          await sendLineNotify(token, msg)
+        }
+      } catch (e) {
+        console.warn("LINE Notify community delivery failed:", e)
+      }
+    }
 
     return { success: true, data: updated }
   })

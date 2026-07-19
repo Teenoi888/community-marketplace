@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation"
 import { api } from "@/lib/api"
 import { useAuthStore } from "@/lib/store/auth"
 import { toast } from "sonner"
-import { Users, Store, LogIn, CheckCircle, Loader2 } from "lucide-react"
+import { Users, Store, LogIn, CheckCircle, Loader2, LogOut } from "lucide-react"
 
 interface Props {
   communityId: string
@@ -20,21 +20,25 @@ interface Membership {
 
 export function JoinCommunityActions({ communityId, communityName }: Props) {
   const user = useAuthStore((s) => s.user)
+  const authLoading = useAuthStore((s) => s.isLoading)
   const router = useRouter()
   const [membership, setMembership] = useState<Membership | null>(null)
   const [loading, setLoading] = useState(true)
   const [joining, setJoining] = useState(false)
+  const [leaving, setLeaving] = useState(false)
   const [openingShop, setOpeningShop] = useState(false)
   const [shopName, setShopName] = useState("")
   const [showShopForm, setShowShopForm] = useState(false)
 
   useEffect(() => {
+    // Wait until auth hydration is done before deciding to fetch or not
+    if (authLoading) return
     if (!user) { setLoading(false); return }
     api.get(`/communities/${communityId}/my-membership`)
       .then(r => setMembership(r.data.data))
       .catch(() => setMembership({ isMember: false, role: null, hasShop: false, shopId: null }))
       .finally(() => setLoading(false))
-  }, [communityId, user])
+  }, [communityId, user, authLoading])
 
   async function handleJoin() {
     if (!user) { router.push("/login"); return }
@@ -47,6 +51,20 @@ export function JoinCommunityActions({ communityId, communityName }: Props) {
       toast.error(err?.response?.data?.error || "เกิดข้อผิดพลาด")
     } finally {
       setJoining(false)
+    }
+  }
+
+  async function handleLeave() {
+    if (!confirm(`ออกจากชุมชน "${communityName}"?`)) return
+    setLeaving(true)
+    try {
+      await api.delete(`/communities/${communityId}/join`)
+      setMembership({ isMember: false, role: null, hasShop: false, shopId: null })
+      toast.success("ออกจากชุมชนแล้ว")
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || "เกิดข้อผิดพลาด")
+    } finally {
+      setLeaving(false)
     }
   }
 
@@ -66,7 +84,8 @@ export function JoinCommunityActions({ communityId, communityName }: Props) {
     }
   }
 
-  if (loading) return (
+  // ยัง hydrate อยู่
+  if (authLoading || loading) return (
     <div className="flex gap-2">
       <div className="h-10 w-28 bg-gray-200 rounded-xl animate-pulse" />
       <div className="h-10 w-32 bg-gray-200 rounded-xl animate-pulse" />
@@ -117,6 +136,15 @@ export function JoinCommunityActions({ communityId, communityName }: Props) {
           className="flex items-center gap-2 px-5 py-2.5 bg-white text-primary-700 font-semibold rounded-xl hover:bg-primary-50 transition-colors text-sm"
         >
           <Store className="w-4 h-4" /> เปิดร้านในชุมชนนี้
+        </button>
+        <button
+          onClick={handleLeave}
+          disabled={leaving}
+          title="ออกจากชุมชน"
+          className="flex items-center gap-1.5 px-3 py-2.5 bg-white/20 hover:bg-red-500/80 text-white rounded-xl text-xs transition-colors disabled:opacity-50"
+        >
+          {leaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <LogOut className="w-3.5 h-3.5" />}
+          ออก
         </button>
       </div>
       {showShopForm && (
