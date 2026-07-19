@@ -1,10 +1,11 @@
 import type { FastifyInstance } from "fastify"
 import { z } from "zod"
 import { db } from "../../db/index.js"
-import { orders, orderItems, products, shops } from "../../db/schema.js"
+import { orders, orderItems, products, shops, coupons, couponRedemptions } from "../../db/schema.js"
 import { eq, sql } from "drizzle-orm"
 import { requireAuth } from "../../middleware/auth.js"
 import { notifyOrderStatus } from "../../lib/notify.js"
+import { findValidCoupon } from "../coupons/index.js"
 import postgres from "postgres"
 
 const rawSql = postgres(process.env.DATABASE_URL!, { max: 1 })
@@ -48,6 +49,7 @@ const createOrderSchema = z.object({
     province: z.string(),
     zipCode: z.string(),
   }),
+  couponCode: z.string().optional(),
 })
 
 export async function orderRoutes(app: FastifyInstance) {
@@ -72,14 +74,37 @@ export async function orderRoutes(app: FastifyInstance) {
       lineItems.push({ product, quantity: item.quantity, price })
     }
 
+    // Apply coupon (if any) — validated server-side again, never trust the discount from the client
+    let discount = 0
+    let appliedCoupon: typeof coupons.$inferSelect | null = null
+    if (body.couponCode) {
+      const result = await findValidCoupon(body.couponCode, body.shopId, total)
+      if ("error" in result) return reply.code(400).send({ success: false, error: result.error })
+      discount = result.discount
+      appliedCoupon = result.coupon
+    }
+    const finalTotal = total - discount
+
     // Create order
     const [order] = await db.insert(orders).values({
       buyerId: userId,
       shopId: body.shopId,
-      total: total.toString(),
+      total: finalTotal.toString(),
       deliveryAddress: body.deliveryAddress,
       status: "pending_payment",
     }).returning()
+
+    if (appliedCoupon) {
+      await db.insert(couponRedemptions).values({
+        couponId: appliedCoupon.id,
+        orderId: order.id,
+        userId,
+        discountAmount: discount.toString(),
+      })
+      await db.update(coupons)
+        .set({ usedCount: sql`${coupons.usedCount} + 1` })
+        .where(eq(coupons.id, appliedCoupon.id))
+    }
 
     // Reserve stock immediately when order is placed (prevents overselling)
     for (const { product, quantity } of lineItems) {

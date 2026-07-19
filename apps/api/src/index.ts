@@ -30,6 +30,8 @@ import { liveRoutes } from "./routes/live/index.js"
 import { stockRoutes } from "./routes/stock/index.js"
 import { wishlistRoutes } from "./routes/wishlist/index.js"
 import { flashSalesRoutes } from "./routes/flash-sales/index.js"
+import { withdrawalRoutes } from "./routes/withdrawals/index.js"
+import { couponRoutes } from "./routes/coupons/index.js"
 import { db } from "./db/index.js"
 import { users, communities, communityMembers, shops, products, orders } from "./db/schema.js"
 import { count, eq, lte, and } from "drizzle-orm"
@@ -109,6 +111,8 @@ await app.register(liveRoutes,      { prefix: "/api/live" })
 await app.register(stockRoutes,     { prefix: "/api/stock" })
 await app.register(wishlistRoutes,  { prefix: "/api/wishlist" })
 await app.register(flashSalesRoutes, { prefix: "/api/flash-sales" })
+await app.register(withdrawalRoutes, { prefix: "/api/withdrawals" })
+await app.register(couponRoutes,    { prefix: "/api/coupons" })
 
 // ── Seed endpoint (no auth required — protected by ADMIN_SECRET only) ──────
 app.post("/api/admin/seed", async (request, reply) => {

@@ -1,6 +1,6 @@
 "use client"
 import { useEffect, useState } from "react"
-import { Package, ShoppingBag, TrendingUp, MessageSquare, Plus, AlertTriangle, Clock, RefreshCw, ChevronLeft, Settings, BarChart2, Star, Zap } from "lucide-react"
+import { Package, ShoppingBag, TrendingUp, MessageSquare, Plus, AlertTriangle, Clock, RefreshCw, ChevronLeft, Settings, BarChart2, Star, Zap, Wallet, Percent } from "lucide-react"
 import Link from "next/link"
 import { api } from "@/lib/api"
 
@@ -245,6 +245,26 @@ export default function SellerDashboard() {
             <div>
               <div className="font-semibold text-gray-900">Flash Sale</div>
               <div className="text-sm text-gray-500">สร้างโปรลดราคาชั่วคราว</div>
+            </div>
+          </Link>
+
+          <Link href="/withdrawals" className="card hover:shadow-md transition-shadow flex items-center gap-4 group">
+            <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center text-emerald-600 group-hover:bg-emerald-200 transition-colors">
+              <Wallet className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="font-semibold text-gray-900">ถอนเงิน</div>
+              <div className="text-sm text-gray-500">ขอถอนยอดขายเข้าบัญชี</div>
+            </div>
+          </Link>
+
+          <Link href="/coupons" className="card hover:shadow-md transition-shadow flex items-center gap-4 group">
+            <div className="w-12 h-12 bg-pink-100 rounded-xl flex items-center justify-center text-pink-600 group-hover:bg-pink-200 transition-colors">
+              <Percent className="w-6 h-6" />
+            </div>
+            <div>
+              <div className="font-semibold text-gray-900">คูปองส่วนลด</div>
+              <div className="text-sm text-gray-500">สร้างโค้ดส่วนลดให้ลูกค้า</div>
             </div>
           </Link>
 

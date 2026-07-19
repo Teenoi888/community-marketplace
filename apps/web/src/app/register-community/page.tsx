@@ -135,7 +135,7 @@ export default function RegisterCommunityPage() {
         <MainNav />
         <div className="max-w-md mx-auto px-4 py-20 text-center">
           <CheckCircle className="w-20 h-20 text-green-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">สร้างชุมชนสำเร็จ! 🎉</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">สร้างชุมชนสำเร็จ!</h1>
           <p className="text-gray-500 mb-6">ร้านค้าของคุณพร้อมใช้งานแล้ว เริ่มเพิ่มสินค้าได้เลย</p>
           <button onClick={() => router.push("/dashboard")} className="btn-primary w-full py-3">
             ไปหน้าจัดการร้าน
@@ -149,7 +149,7 @@ export default function RegisterCommunityPage() {
     <main>
       <MainNav />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">🏘️ ลงทะเบียนชุมชน</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-2">ลงทะเบียนชุมชน</h1>
         <p className="text-gray-500 mb-8">เปิดร้านค้าออนไลน์ให้ชุมชนของคุณ ฟรี ไม่มี GP</p>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">

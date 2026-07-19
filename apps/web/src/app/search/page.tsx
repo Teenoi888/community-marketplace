@@ -13,16 +13,23 @@ function SearchResults() {
   const router = useRouter()
   const q = searchParams.get("q") || ""
 
+  const PRODUCTS_PER_PAGE = 24
+
   const [products, setProducts] = useState<ProductWithShop[]>([])
   const [communities, setCommunities] = useState<(Community & { productCount: number })[]>([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState(q)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
 
   useEffect(() => {
     setQuery(q)
+    setPage(1)
     if (!q) {
       setProducts([])
       setCommunities([])
+      setHasMore(false)
       setLoading(false)
       return
     }
@@ -31,19 +38,39 @@ function SearchResults() {
     // so searching "เชียงใหม่" returns both name-matched AND province-matched results
     const enc = encodeURIComponent(q)
     Promise.all([
-      api.get(`/products?search=${enc}&province=${enc}&limit=24`),
+      api.get(`/products?search=${enc}&province=${enc}&limit=${PRODUCTS_PER_PAGE}&page=1`),
       api.get(`/communities?search=${enc}&limit=12`),
     ])
       .then(([p, c]) => {
-        setProducts(p.data.data || [])
+        const productRows = p.data.data || []
+        setProducts(productRows)
+        setHasMore(productRows.length === PRODUCTS_PER_PAGE)
         setCommunities(c.data.data || [])
       })
       .catch(() => {
         setProducts([])
         setCommunities([])
+        setHasMore(false)
       })
       .finally(() => setLoading(false))
   }, [q])
+
+  async function loadMore() {
+    const nextPage = page + 1
+    setLoadingMore(true)
+    try {
+      const enc = encodeURIComponent(q)
+      const r = await api.get(`/products?search=${enc}&province=${enc}&limit=${PRODUCTS_PER_PAGE}&page=${nextPage}`)
+      const rows = r.data.data || []
+      setProducts(prev => [...prev, ...rows])
+      setHasMore(rows.length === PRODUCTS_PER_PAGE)
+      setPage(nextPage)
+    } catch {
+      setHasMore(false)
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -107,6 +134,17 @@ function SearchResults() {
                     <ProductCard key={p.id} product={p} />
                   ))}
                 </div>
+                {hasMore && (
+                  <div className="flex justify-center mt-6">
+                    <button
+                      onClick={loadMore}
+                      disabled={loadingMore}
+                      className="px-6 py-2.5 rounded-full border border-gray-300 text-sm font-medium text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50"
+                    >
+                      {loadingMore ? "กำลังโหลด..." : "โหลดเพิ่มเติม"}
+                    </button>
+                  </div>
+                )}
               </section>
             )}
           </div>

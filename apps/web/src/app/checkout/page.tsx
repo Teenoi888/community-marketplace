@@ -1,9 +1,9 @@
 "use client"
 export const dynamic = 'force-dynamic'
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { MapPin, Plus, Star, Trash2, Check, ChevronDown, ChevronUp, Home, Briefcase } from "lucide-react"
+import { MapPin, Plus, Star, Trash2, Check, ChevronDown, ChevronUp, Home, Briefcase, Tag } from "lucide-react"
 import { MainNav } from "@/components/layout/MainNav"
 import { useCartStore } from "@/lib/store/cart"
 import { api } from "@/lib/api"
@@ -65,6 +65,33 @@ export default function CheckoutPage() {
     saveAddress: true, setAsDefault: false,
   })
   const [formErrors, setFormErrors] = useState<Partial<Record<keyof FormState, string>>>({})
+
+  // Coupons only apply cleanly when the whole cart is a single shop's order
+  const byShop = useMemo(() => items.reduce((acc, item) => {
+    if (!acc[item.shopId]) acc[item.shopId] = []
+    acc[item.shopId].push(item)
+    return acc
+  }, {} as Record<string, typeof items>), [items])
+  const singleShopId = Object.keys(byShop).length === 1 ? Object.keys(byShop)[0] : null
+
+  const [couponInput, setCouponInput] = useState("")
+  const [appliedCoupon, setAppliedCoupon] = useState<{ code: string; discount: number } | null>(null)
+  const [applyingCoupon, setApplyingCoupon] = useState(false)
+
+  async function applyCoupon() {
+    if (!singleShopId || !couponInput.trim()) return
+    setApplyingCoupon(true)
+    try {
+      const r = await api.post("/coupons/validate", { code: couponInput.trim(), shopId: singleShopId, subtotal: total() })
+      setAppliedCoupon({ code: r.data.data.code, discount: r.data.data.discount })
+      toast.success("ใช้คูปองสำเร็จ")
+    } catch (err: any) {
+      setAppliedCoupon(null)
+      toast.error(err.response?.data?.error || "คูปองไม่ถูกต้อง")
+    } finally {
+      setApplyingCoupon(false)
+    }
+  }
 
   const districts = getDistricts(form.province)
   const subdistricts = getSubdistricts(form.province, form.district)
@@ -180,18 +207,13 @@ export default function CheckoutPage() {
 
     setSubmitting(true)
     try {
-      const byShop = items.reduce((acc, item) => {
-        if (!acc[item.shopId]) acc[item.shopId] = []
-        acc[item.shopId].push(item)
-        return acc
-      }, {} as Record<string, typeof items>)
-
       const orders = await Promise.all(
         Object.entries(byShop).map(([shopId, shopItems]) =>
           api.post("/orders", {
             shopId,
             items: shopItems.map(i => ({ productId: i.product.id, quantity: i.quantity })),
             deliveryAddress,
+            couponCode: shopId === singleShopId ? appliedCoupon?.code : undefined,
           }).then(r => r.data.data)
         )
       )
@@ -433,7 +455,7 @@ export default function CheckoutPage() {
               disabled={submitting || loadingAddresses}
               className="btn-primary w-full py-4 text-base disabled:opacity-60"
             >
-              {submitting ? "กำลังสร้างออเดอร์..." : `สั่งซื้อ (${formatPrice(total())})`}
+              {submitting ? "กำลังสร้างออเดอร์..." : `สั่งซื้อ (${formatPrice(Math.max(0, total() - (appliedCoupon?.discount ?? 0)))})`}
             </button>
           </div>
 
@@ -448,9 +470,45 @@ export default function CheckoutPage() {
                 </div>
               ))}
             </div>
+            {singleShopId && (
+              <div className="border-t border-gray-100 pt-3 mb-3">
+                {appliedCoupon ? (
+                  <div className="flex items-center justify-between text-sm bg-green-50 text-green-700 rounded-lg px-3 py-2">
+                    <span className="flex items-center gap-1.5"><Tag className="w-3.5 h-3.5" /> {appliedCoupon.code}</span>
+                    <button type="button" onClick={() => { setAppliedCoupon(null); setCouponInput("") }} className="text-xs underline">
+                      ยกเลิก
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <input
+                      value={couponInput}
+                      onChange={e => setCouponInput(e.target.value.toUpperCase())}
+                      placeholder="โค้ดส่วนลด"
+                      className="input flex-1 tracking-widest text-sm"
+                    />
+                    <button
+                      type="button"
+                      onClick={applyCoupon}
+                      disabled={applyingCoupon || !couponInput.trim()}
+                      className="px-4 rounded-xl border border-gray-300 text-sm font-medium text-gray-600 hover:bg-gray-100 disabled:opacity-50"
+                    >
+                      {applyingCoupon ? "..." : "ใช้"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {appliedCoupon && (
+              <div className="flex justify-between text-sm text-gray-500 mb-1">
+                <span>ส่วนลด</span>
+                <span className="text-green-600">-{formatPrice(appliedCoupon.discount)}</span>
+              </div>
+            )}
             <div className="border-t border-gray-100 pt-3 flex justify-between font-bold">
               <span>รวม</span>
-              <span className="text-primary-600">{formatPrice(total())}</span>
+              <span className="text-primary-600">{formatPrice(Math.max(0, total() - (appliedCoupon?.discount ?? 0)))}</span>
             </div>
           </div>
         </div>
