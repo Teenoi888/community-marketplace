@@ -142,6 +142,47 @@ export const payments = pgTable("payments", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 })
 
+export const withdrawalStatusEnum = pgEnum("withdrawal_status", ["pending", "approved", "rejected", "paid"])
+
+export const withdrawalRequests = pgTable("withdrawal_requests", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  shopId: uuid("shop_id").references(() => shops.id).notNull(),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  bankName: text("bank_name").notNull(),
+  accountName: text("account_name").notNull(),
+  accountNumber: text("account_number").notNull(),
+  status: withdrawalStatusEnum("status").default("pending").notNull(),
+  note: text("note"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  processedAt: timestamp("processed_at"),
+})
+
+export const discountTypeEnum = pgEnum("discount_type", ["percent", "fixed"])
+
+export const coupons = pgTable("coupons", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  code: text("code").notNull().unique(),
+  shopId: uuid("shop_id").references(() => shops.id), // null = platform-wide (admin-created)
+  discountType: discountTypeEnum("discount_type").notNull(),
+  discountValue: numeric("discount_value", { precision: 12, scale: 2 }).notNull(),
+  minOrderAmount: numeric("min_order_amount", { precision: 12, scale: 2 }).default("0").notNull(),
+  maxDiscountAmount: numeric("max_discount_amount", { precision: 12, scale: 2 }),
+  usageLimit: integer("usage_limit"),
+  usedCount: integer("used_count").default(0).notNull(),
+  active: boolean("active").default(true).notNull(),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+})
+
+export const couponRedemptions = pgTable("coupon_redemptions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  couponId: uuid("coupon_id").references(() => coupons.id, { onDelete: "cascade" }).notNull(),
+  orderId: uuid("order_id").references(() => orders.id, { onDelete: "cascade" }).notNull(),
+  userId: uuid("user_id").references(() => users.id).notNull(),
+  discountAmount: numeric("discount_amount", { precision: 12, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+})
+
 export const conversations = pgTable("conversations", {
   id: uuid("id").primaryKey().defaultRandom(),
   buyerId: uuid("buyer_id").references(() => users.id).notNull(),
@@ -259,6 +300,23 @@ export const shopsRelations = relations(shops, ({ one, many }) => ({
   community: one(communities, { fields: [shops.communityId], references: [communities.id] }),
   owner: one(users, { fields: [shops.ownerId], references: [users.id] }),
   products: many(products),
+  withdrawalRequests: many(withdrawalRequests),
+  coupons: many(coupons),
+}))
+
+export const withdrawalRequestsRelations = relations(withdrawalRequests, ({ one }) => ({
+  shop: one(shops, { fields: [withdrawalRequests.shopId], references: [shops.id] }),
+}))
+
+export const couponsRelations = relations(coupons, ({ one, many }) => ({
+  shop: one(shops, { fields: [coupons.shopId], references: [shops.id] }),
+  redemptions: many(couponRedemptions),
+}))
+
+export const couponRedemptionsRelations = relations(couponRedemptions, ({ one }) => ({
+  coupon: one(coupons, { fields: [couponRedemptions.couponId], references: [coupons.id] }),
+  order: one(orders, { fields: [couponRedemptions.orderId], references: [orders.id] }),
+  user: one(users, { fields: [couponRedemptions.userId], references: [users.id] }),
 }))
 
 export const productsRelations = relations(products, ({ one, many }) => ({
