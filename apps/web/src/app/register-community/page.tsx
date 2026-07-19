@@ -211,7 +211,7 @@ export default function RegisterCommunityPage() {
                   <div>
                     <p className="text-sm font-semibold text-red-700">พื้นที่นี้มีชุมชนอื่นอยู่แล้ว</p>
                     <p className="text-xs text-red-600 mt-0.5">
-                      ชุมชน <strong>"{zone.conflictName}"</strong> อยู่ห่างแค่ {zone.distanceKm} km
+                      ชุมชน <strong>&quot;{zone.conflictName}&quot;</strong> อยู่ห่างแค่ {zone.distanceKm} km
                     </p>
                     <p className="text-xs text-red-500 mt-1">ต้องอยู่ห่างกันอย่างน้อย 10 km จึงจะสร้างชุมชนใหม่ได้</p>
                   </div>

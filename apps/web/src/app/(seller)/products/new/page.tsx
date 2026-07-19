@@ -243,7 +243,7 @@ function NewProductForm() {
               </button>
             </div>
             {variants.length === 0 && (
-              <p className="text-sm text-gray-400">เช่น ขนาด (S/M/L) หรือสี (แดง/น้ำเงิน) — กด "เพิ่มตัวเลือก" เพื่อเริ่ม</p>
+              <p className="text-sm text-gray-400">เช่น ขนาด (S/M/L) หรือสี (แดง/น้ำเงิน) — กด &quot;เพิ่มตัวเลือก&quot; เพื่อเริ่ม</p>
             )}
             {variants.map((group, gi) => (
               <div key={gi} className="mb-4 border border-gray-200 rounded-xl p-3">
