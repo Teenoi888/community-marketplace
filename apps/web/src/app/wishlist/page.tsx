@@ -27,6 +27,7 @@ function fmt(price: string) {
 
 export default function WishlistPage() {
   const user = useAuthStore(s => s.user)
+  const authLoading = useAuthStore(s => s.isLoading)
   const router = useRouter()
   const { addItem } = useCartStore()
   const { remove } = useWishlistStore()
@@ -34,12 +35,13 @@ export default function WishlistPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (authLoading) return
     if (!user) { router.push("/login"); return }
     api.get("/wishlist")
       .then(r => setProducts(r.data.data || []))
       .catch(() => {})
       .finally(() => setLoading(false))
-  }, [user])
+  }, [user, authLoading])
 
   async function handleRemove(productId: string, name: string) {
     await remove(productId)
@@ -60,7 +62,7 @@ export default function WishlistPage() {
   return (
     <main className="min-h-screen bg-gray-50">
       <MainNav />
-      <div className="max-w-4xl mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
@@ -68,10 +70,7 @@ export default function WishlistPage() {
             <ArrowLeft className="w-5 h-5 text-gray-600" />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-              <Heart className="w-5 h-5 text-red-500 fill-red-500" />
-              รายการโปรด
-            </h1>
+            <h1 className="text-xl font-bold text-gray-900">รายการโปรด</h1>
             <p className="text-sm text-gray-500">
               {loading ? "กำลังโหลด..." : `${products.length} รายการ`}
             </p>
