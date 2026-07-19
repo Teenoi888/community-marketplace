@@ -13,7 +13,12 @@ export async function wishlistRoutes(app: FastifyInstance) {
       where: eq(wishlistItems.userId, userId),
       with: {
         product: {
-          with: { shop: { columns: { name: true, id: true } } },
+          with: {
+            shop: {
+              columns: { name: true, id: true },
+              with: { community: { columns: { name: true, slug: true } } },
+            },
+          },
         },
       },
       orderBy: [wishlistItems.createdAt],

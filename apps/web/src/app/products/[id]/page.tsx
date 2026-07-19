@@ -252,8 +252,8 @@ export default function ProductDetailPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-[2fr_3fr] gap-8 items-start">
           {/* Images */}
-          <div className="md:sticky md:top-24">
-            <div className="relative aspect-square rounded-2xl overflow-hidden bg-gray-100 mb-3">
+          <div className="flex flex-col">
+            <div className="relative aspect-square md:aspect-auto md:flex-1 md:min-h-[420px] rounded-2xl overflow-hidden bg-gray-100 mb-3">
               {product.images?.length > 0
                 ? <Image src={product.images[selectedImage]} alt={product.name} fill className="object-cover" />
                 : <div className="w-full h-full flex items-center justify-center">

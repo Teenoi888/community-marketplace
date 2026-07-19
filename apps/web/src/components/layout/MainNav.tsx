@@ -18,7 +18,7 @@ export function MainNav() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [hasCommunity, setHasCommunity] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
-  const { user, setUser, logout } = useAuthStore()
+  const { user, setUser, setLoading, logout } = useAuthStore()
   const cartCount = useCartStore((s) => s.itemCount())
   const resetWishlist = useWishlistStore((s) => s.reset)
   const [mounted, setMounted] = useState(false)
@@ -44,6 +44,9 @@ export function MainNav() {
       api.get("/auth/me").then(res => {
         if (res.data?.data) setUser(res.data.data)
       }).catch(() => localStorage.removeItem("access_token"))
+        .finally(() => setLoading(false))
+    } else {
+      setLoading(false)
     }
   }, [])
 
