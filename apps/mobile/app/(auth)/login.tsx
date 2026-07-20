@@ -1,9 +1,11 @@
-import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert } from "react-native"
+import { View, Text, TextInput, TouchableOpacity, ScrollView, Alert, Linking } from "react-native"
 import { Link, useRouter } from "expo-router"
 import { useState } from "react"
 import { api } from "../../lib/api"
 import { useAuthStore } from "../../lib/store/auth"
 import * as SecureStore from "expo-secure-store"
+
+const WEB_APP_URL = process.env.EXPO_PUBLIC_WEB_URL || "https://cmweb-production-5bff.up.railway.app"
 
 export default function LoginScreen() {
   const router = useRouter()
@@ -19,12 +21,19 @@ export default function LoginScreen() {
       const { data } = await api.post("/auth/login", { phone, password })
       await SecureStore.setItemAsync("access_token", data.accessToken)
       setUser(data.user)
-      router.replace("/(buyer)/marketplace")
+      router.replace(data.user.role === "admin" ? "/(admin)/dashboard" : "/(buyer)/marketplace")
     } catch {
       Alert.alert("ข้อผิดพลาด", "เบอร์โทรหรือรหัสผ่านไม่ถูกต้อง")
     } finally {
       setLoading(false)
     }
+  }
+
+  // LINE/Google/Facebook OAuth need a native redirect back into the app
+  // (deep link + backend allowlist) to log the user in automatically; that
+  // wiring isn't done yet, so for now this just opens the web login flow.
+  function loginWithLine() {
+    Linking.openURL(`${WEB_APP_URL}/login`)
   }
 
   return (
@@ -39,7 +48,7 @@ export default function LoginScreen() {
       </View>
 
       {/* Line Login Button */}
-      <TouchableOpacity className="bg-[#06C755] py-4 rounded-2xl items-center mb-4 flex-row justify-center gap-3">
+      <TouchableOpacity onPress={loginWithLine} className="bg-[#06C755] py-4 rounded-2xl items-center mb-4 flex-row justify-center gap-3">
         <Text className="text-white font-bold text-lg">เข้าสู่ระบบด้วย LINE</Text>
       </TouchableOpacity>
 
@@ -62,7 +71,10 @@ export default function LoginScreen() {
           />
         </View>
         <View>
-          <Text className="text-sm font-medium text-gray-700 mb-1.5">รหัสผ่าน</Text>
+          <View className="flex-row items-center justify-between mb-1.5">
+            <Text className="text-sm font-medium text-gray-700">รหัสผ่าน</Text>
+            <Link href="/(auth)/forgot-password"><Text className="text-xs text-primary-600">ลืมรหัสผ่าน?</Text></Link>
+          </View>
           <TextInput
             className="border border-gray-300 rounded-xl px-4 py-3.5 text-base"
             placeholder="••••••"

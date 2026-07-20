@@ -153,6 +153,9 @@ importers:
       react-native-screens:
         specifier: 3.31.1
         version: 3.31.1(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.3.31)(react@18.2.0))(react@18.2.0)
+      react-native-webrtc:
+        specifier: ^124.0.4
+        version: 124.0.7(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.3.31)(react@18.2.0))
       tailwindcss:
         specifier: ^3.4.4
         version: 3.4.19(tsx@4.23.0)(yaml@2.9.0)
@@ -1534,7 +1537,7 @@ packages:
 
   '@expo/bunyan@4.0.1':
     resolution: {integrity: sha512-+Lla7nYSiHZirgK+U/uYzsLv/X+HaJienbD5AKX1UQZHYfWaP+9uuQluRB4GrEVWF0GZ7vEVp/jzaOT9k/SQlg==}
-    engines: {'0': node >=0.10.0}
+    engines: {node: '>=0.10.0'}
 
   '@expo/cli@0.18.31':
     resolution: {integrity: sha512-v9llw9fT3Uv+TCM6Xllo54t672CuYtinEQZ2LPJ2EJsCwuTc4Cd2gXQaouuIVD21VoeGQnr5JtJuWbF97sBKzQ==}
@@ -3136,6 +3139,15 @@ packages:
       supports-color:
         optional: true
 
+  debug@4.3.4:
+    resolution: {integrity: sha512-PRWFHuSU3eDtQJPvnNY7Jcket1j0t5OuOsFzPPzsekD52Zl8qUfFIPEiswXqIvHWGVHOgX+7G/vCNNhehwxfkQ==}
+    engines: {node: '>=6.0'}
+    peerDependencies:
+      supports-color: '*'
+    peerDependenciesMeta:
+      supports-color:
+        optional: true
+
   debug@4.4.3:
     resolution: {integrity: sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA==}
     engines: {node: '>=6.0'}
@@ -3585,6 +3597,10 @@ packages:
   event-target-shim@5.0.1:
     resolution: {integrity: sha512-i/2XbnSz/uxRCU6+NdVJgKWDTM427+MqYbkQzD321DuCQJUqOuJKIA0IM2+W2xtYHdKOmZ4dR6fExsd4SXL+WQ==}
     engines: {node: '>=6'}
+
+  event-target-shim@6.0.2:
+    resolution: {integrity: sha512-8q3LsZjRezbFZ2PN+uP+Q7pnHUMmAOziU2vA2OwoFaKIXxlxl38IylhSSgUorWu/rf4er67w0ikBqjBFk/pomA==}
+    engines: {node: '>=10.13.0'}
 
   execa@1.0.0:
     resolution: {integrity: sha512-adbxcyWV46qiHyvSp50TKt05tB4tK3HcmF7/nxfAdhnox83seTDbwnaqKO4sXRy7roHAIFqJP/Rw/AuEbX61LA==}
@@ -5003,6 +5019,9 @@ packages:
   ms@2.0.0:
     resolution: {integrity: sha512-Tpp60P6IUJDTuOq/5Z8cdskzJujfwqfOTkrwIwj7IRISpnkJnT6SyJ4PCPnGMoFjC9ddhal5KVIYtAt97ix05A==}
 
+  ms@2.1.2:
+    resolution: {integrity: sha512-sGkPx+VjMtmA6MX27oA4FBFELFCZZ4S4XqeGOXCv68tT+jb3vk/RyaKWP0PTKyWtmLSM0b+adUTEvbs1PEaH2w==}
+
   ms@2.1.3:
     resolution: {integrity: sha512-6FlzubTLZG3J2a/NVCAleEhjzq5oxgHyaCU9yYXvcLsvoVaHJq/s5xXI6/XXP6tz7R9xAOtHnSO/tXtF3WRTlA==}
 
@@ -5664,6 +5683,11 @@ packages:
     peerDependencies:
       react: '*'
       react-native: '*'
+
+  react-native-webrtc@124.0.7:
+    resolution: {integrity: sha512-gnXPdbUS8IkKHq9WNaWptW/yy5s6nMyI6cNn90LXdobPVCgYSk6NA2uUGdT4c4J14BRgaFA95F+cR28tUPkMVA==}
+    peerDependencies:
+      react-native: '>=0.60.0'
 
   react-native-worklets@0.10.2:
     resolution: {integrity: sha512-LX27ejYI8veeDp59Z3rjo2pYyPa9euzSH8GUlem7cnNqfsDtGum8PQpkbzrqhLsWH0CjdeHR7p3sncCyYbwaVw==}
@@ -10289,6 +10313,10 @@ snapshots:
     dependencies:
       ms: 2.1.3
 
+  debug@4.3.4:
+    dependencies:
+      ms: 2.1.2
+
   debug@4.4.3:
     dependencies:
       ms: 2.1.3
@@ -10843,6 +10871,8 @@ snapshots:
   etag@1.8.1: {}
 
   event-target-shim@5.0.1: {}
+
+  event-target-shim@6.0.2: {}
 
   execa@1.0.0:
     dependencies:
@@ -12608,6 +12638,8 @@ snapshots:
 
   ms@2.0.0: {}
 
+  ms@2.1.2: {}
+
   ms@2.1.3: {}
 
   mz@2.7.0:
@@ -13256,6 +13288,15 @@ snapshots:
       react-freeze: 1.0.4(react@18.2.0)
       react-native: 0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.3.31)(react@18.2.0)
       warn-once: 0.1.1
+
+  react-native-webrtc@124.0.7(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.3.31)(react@18.2.0)):
+    dependencies:
+      base64-js: 1.5.1
+      debug: 4.3.4
+      event-target-shim: 6.0.2
+      react-native: 0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.3.31)(react@18.2.0)
+    transitivePeerDependencies:
+      - supports-color
 
   react-native-worklets@0.10.2(@babel/core@7.29.7)(@react-native/metro-config@0.86.0(@babel/core@7.29.7))(react-native@0.74.5(@babel/core@7.29.7)(@babel/preset-env@7.29.7(@babel/core@7.29.7))(@types/react@18.3.31)(react@18.2.0))(react@18.2.0):
     dependencies:
@@ -14492,4 +14533,3 @@ snapshots:
     optionalDependencies:
       '@types/react': 18.3.31
       react: 18.3.1
-

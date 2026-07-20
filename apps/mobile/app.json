@@ -13,7 +13,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "co.relearnsolution.communitymarketplace"
+      "bundleIdentifier": "co.relearnsolution.communitymarketplace",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "ต้องการไมโครโฟนเพื่อไลฟ์สดและแชทด้วยเสียง"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -21,13 +24,20 @@
         "backgroundColor": "#16a34a"
       },
       "package": "co.relearnsolution.communitymarketplace",
-      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE"]
+      "permissions": ["CAMERA", "RECORD_AUDIO", "READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE"]
     },
     "plugins": [
       "expo-router",
       "expo-notifications",
       ["expo-camera", { "cameraPermission": "ต้องการกล้องเพื่อสแกน QR Code" }],
-      ["expo-image-picker", { "photosPermission": "ต้องการเข้าถึงรูปภาพเพื่อโพสต์สินค้า" }]
+      ["expo-image-picker", { "photosPermission": "ต้องการเข้าถึงรูปภาพเพื่อโพสต์สินค้า" }],
+      [
+        "react-native-webrtc",
+        {
+          "cameraPermission": "ต้องการกล้องเพื่อไลฟ์สด",
+          "microphonePermission": "ต้องการไมโครโฟนเพื่อไลฟ์สด"
+        }
+      ]
     ],
     "scheme": "communitymarketplace",
     "extra": {
