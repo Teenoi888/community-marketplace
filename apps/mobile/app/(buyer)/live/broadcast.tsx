@@ -2,9 +2,10 @@ import { View, Text, TouchableOpacity, TextInput, FlatList, Alert } from "react-
 import { SafeAreaView } from "react-native-safe-area-context"
 import { router, useLocalSearchParams } from "expo-router"
 import { useEffect, useRef, useState } from "react"
+import type { RTCPeerConnection as RTCPeerConnectionT, MediaStream as MediaStreamT } from "react-native-webrtc"
 import {
-  RTCPeerConnection, RTCSessionDescription, RTCIceCandidate, RTCView, mediaDevices, MediaStream,
-} from "react-native-webrtc"
+  RTCPeerConnection, RTCSessionDescription, RTCIceCandidate, RTCView, mediaDevices, isWebRTCAvailable,
+} from "../../../lib/webrtc"
 import { api } from "../../../lib/api"
 import { useAuthStore } from "../../../lib/store/auth"
 
@@ -14,13 +15,26 @@ const ICE_SERVERS = [{ urls: "stun:stun.l.google.com:19302" }, { urls: "stun:stu
 interface ChatMsg { userId: string; userName: string; message: string }
 interface ProductResult { id: string; name: string; price: string; images: string[] }
 
+function UnsupportedScreen() {
+  return (
+    <SafeAreaView className="flex-1 bg-gray-950 items-center justify-center gap-4 px-6">
+      <Text className="text-5xl">📡</Text>
+      <Text className="text-white font-semibold text-lg text-center">ฟีเจอร์ไลฟ์สดใช้ไม่ได้ในโหมดนี้</Text>
+      <Text className="text-gray-400 text-sm text-center">ต้องเปิดผ่านแอปที่ build มาเฉพาะ (dev/production build) — ใช้งานไม่ได้ใน Expo Go</Text>
+      <TouchableOpacity onPress={() => router.back()} className="bg-primary-600 rounded-xl px-6 py-3">
+        <Text className="text-white font-semibold">กลับ</Text>
+      </TouchableOpacity>
+    </SafeAreaView>
+  )
+}
+
 export default function LiveBroadcastScreen() {
   const { id: sessionId } = useLocalSearchParams<{ id: string }>()
   const user = useAuthStore(s => s.user)
 
-  const streamRef = useRef<MediaStream | null>(null)
+  const streamRef = useRef<MediaStreamT | null>(null)
   const wsRef = useRef<WebSocket | null>(null)
-  const peersRef = useRef<Map<string, RTCPeerConnection>>(new Map())
+  const peersRef = useRef<Map<string, RTCPeerConnectionT>>(new Map())
 
   const [localStreamURL, setLocalStreamURL] = useState<string | null>(null)
   const [live, setLive] = useState(false)
@@ -35,7 +49,7 @@ export default function LiveBroadcastScreen() {
   const [pinnedProducts, setPinnedProducts] = useState<ProductResult[]>([])
 
   function createPeer(viewerId: string) {
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS })
+    const pc = new (RTCPeerConnection!)({ iceServers: ICE_SERVERS })
     streamRef.current?.getTracks().forEach(t => pc.addTrack(t, streamRef.current!))
     // @ts-expect-error onicecandidate exists at runtime on react-native-webrtc's RTCPeerConnection
     pc.onicecandidate = (e: any) => {
@@ -48,13 +62,13 @@ export default function LiveBroadcastScreen() {
   }
 
   useEffect(() => {
-    if (!sessionId || !user) return
+    if (!sessionId || !user || !isWebRTCAvailable) return
     let cancelled = false
 
     async function start() {
-      let stream: MediaStream
+      let stream: MediaStreamT
       try {
-        stream = await mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: true }) as unknown as MediaStream
+        stream = await mediaDevices!.getUserMedia({ video: { facingMode: "user" }, audio: true }) as unknown as MediaStreamT
       } catch {
         Alert.alert("ข้อผิดพลาด", "ไม่สามารถเข้าถึงกล้องหรือไมค์ได้")
         return
@@ -78,10 +92,10 @@ export default function LiveBroadcastScreen() {
           ws.send(JSON.stringify({ type: "offer", viewerId: msg.viewerId, offer }))
         } else if (msg.type === "answer") {
           const pc = peersRef.current.get(msg.viewerId)
-          if (pc) await pc.setRemoteDescription(new RTCSessionDescription(msg.answer))
+          if (pc) await pc.setRemoteDescription(new (RTCSessionDescription!)(msg.answer))
         } else if (msg.type === "ice") {
           const pc = peersRef.current.get(msg.viewerId)
-          if (pc && msg.candidate) await pc.addIceCandidate(new RTCIceCandidate(msg.candidate))
+          if (pc && msg.candidate) await pc.addIceCandidate(new (RTCIceCandidate!)(msg.candidate))
         } else if (msg.type === "viewer_left") {
           setViewerCount(msg.viewerCount)
           peersRef.current.get(msg.viewerId)?.close()
@@ -148,11 +162,15 @@ export default function LiveBroadcastScreen() {
     ])
   }
 
+  if (!isWebRTCAvailable) return <UnsupportedScreen />
+
+  const Video = RTCView!
+
   return (
     <SafeAreaView className="flex-1 bg-gray-950">
       <View className="flex-1 bg-black relative">
         {localStreamURL && (
-          <RTCView streamURL={localStreamURL} style={{ flex: 1 }} objectFit="cover" mirror zOrder={0} />
+          <Video streamURL={localStreamURL} style={{ flex: 1 }} objectFit="cover" mirror zOrder={0} />
         )}
 
         <View className="absolute top-3 left-3 flex-row items-center gap-2">
