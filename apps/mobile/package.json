@@ -6,6 +6,7 @@
     "dev": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
+    "type-check": "tsc --noEmit",
     "build:android": "eas build --platform android",
     "build:ios": "eas build --platform ios",
     "submit": "eas submit"
@@ -21,6 +22,7 @@
     "expo-camera": "~15.0.14",
     "react": "18.2.0",
     "react-native": "0.74.5",
+    "react-native-webrtc": "^124.0.4",
     "@react-native-async-storage/async-storage": "1.23.1",
     "react-native-safe-area-context": "4.10.5",
     "react-native-screens": "3.31.1",

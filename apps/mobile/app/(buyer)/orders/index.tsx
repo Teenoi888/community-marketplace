@@ -1,5 +1,6 @@
-import { View, Text, FlatList, RefreshControl } from "react-native"
+import { View, Text, FlatList, RefreshControl, TouchableOpacity } from "react-native"
 import { SafeAreaView } from "react-native-safe-area-context"
+import { router } from "expo-router"
 import { useQuery } from "@tanstack/react-query"
 import { api } from "../../../lib/api"
 
@@ -35,7 +36,7 @@ export default function OrdersScreen() {
         renderItem={({ item }) => {
           const status = STATUS_MAP[item.status] || STATUS_MAP.pending_payment
           return (
-            <View className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <TouchableOpacity onPress={() => router.push(`/(buyer)/order/${item.id}`)} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
               <View className="flex-row items-center justify-between mb-3">
                 <Text className="font-medium text-gray-500 text-xs">
                   #{item.id.slice(0, 8).toUpperCase()}
@@ -58,7 +59,7 @@ export default function OrdersScreen() {
                 <Text className="text-gray-500 text-sm">รวม</Text>
                 <Text className="font-bold text-primary-600">฿{Number(item.total).toLocaleString()}</Text>
               </View>
-            </View>
+            </TouchableOpacity>
           )
         }}
         ListEmptyComponent={() => (

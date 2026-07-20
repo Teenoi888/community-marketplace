@@ -8,7 +8,7 @@ export default function SellerProductsScreen() {
   const { data: products, isLoading, refetch } = useQuery({
     queryKey: ["seller-products"],
     queryFn: async () => {
-      const { data } = await api.get("/products?mine=true")
+      const { data } = await api.get("/products?seller=me")
       return data.data
     },
   })
@@ -31,7 +31,10 @@ export default function SellerProductsScreen() {
         contentContainerClassName="px-4 gap-3 pb-6"
         refreshControl={<RefreshControl refreshing={isLoading} onRefresh={refetch} colors={["#16a34a"]} />}
         renderItem={({ item }) => (
-          <TouchableOpacity className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex-row items-center gap-4">
+          <TouchableOpacity
+            onPress={() => router.push(`/(seller)/products/${item.id}/edit`)}
+            className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex-row items-center gap-4"
+          >
             <View className="w-16 h-16 bg-gray-100 rounded-xl items-center justify-center">
               <Text className="text-3xl">🛒</Text>
             </View>
