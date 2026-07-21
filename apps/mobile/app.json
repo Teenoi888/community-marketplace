@@ -29,20 +29,12 @@
     "plugins": [
       "expo-router",
       "expo-notifications",
-      ["expo-camera", { "cameraPermission": "ต้องการกล้องเพื่อสแกน QR Code" }],
-      ["expo-image-picker", { "photosPermission": "ต้องการเข้าถึงรูปภาพเพื่อโพสต์สินค้า" }],
-      [
-        "react-native-webrtc",
-        {
-          "cameraPermission": "ต้องการกล้องเพื่อไลฟ์สด",
-          "microphonePermission": "ต้องการไมโครโฟนเพื่อไลฟ์สด"
-        }
-      ]
+      ["expo-camera", { "cameraPermission": "ต้องการกล้องเพื่อสแกน QR Code และไลฟ์สด" }],
+      ["expo-image-picker", { "photosPermission": "ต้องการเข้าถึงรูปภาพเพื่อโพสต์สินค้า" }]
     ],
     "scheme": "communitymarketplace",
     "extra": {
-      "router": { "origin": false },
-      "eas": { "projectId": "YOUR_EAS_PROJECT_ID" }
+      "router": { "origin": false }
     }
   }
 }
