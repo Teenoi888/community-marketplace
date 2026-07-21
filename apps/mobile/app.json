@@ -34,8 +34,7 @@
     ],
     "scheme": "communitymarketplace",
     "extra": {
-      "router": { "origin": false },
-      "eas": { "projectId": "YOUR_EAS_PROJECT_ID" }
+      "router": { "origin": false }
     }
   }
 }

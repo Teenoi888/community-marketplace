@@ -20,5 +20,11 @@ config.resolver.nodeModulesPaths = [
   path.resolve(projectRoot, "node_modules"),
   path.resolve(workspaceRoot, "node_modules"),
 ]
+// pnpm's node_modules is a tree of symlinks into the .pnpm virtual store.
+// Without this, Metro's dev server (not `expo export`, which works fine)
+// can compute an entry-file path from the symlinked location and then fail
+// to re-resolve that same path on the actual bundle request — a known
+// Metro+pnpm mismatch.
+config.resolver.unstable_enableSymlinks = true
 
 module.exports = withNativeWind(config, { input: "./global.css" })
