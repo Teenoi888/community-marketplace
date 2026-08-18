@@ -1,6 +1,7 @@
 import type { FastifyInstance } from "fastify"
 import { z } from "zod"
 import axios from "axios"
+import QRCode from "qrcode"
 import { db } from "../../db/index.js"
 import { payments, orders } from "../../db/schema.js"
 import { eq } from "drizzle-orm"
@@ -13,11 +14,17 @@ const createPaymentSchema = z.object({
 })
 
 // ─── Detect which card gateway is configured ─────────────────────────────────
-function detectCardGateway(): "omise" | "gbprimepay" | "2c2p" | null {
+function detectCardGateway(): "omise" | "xendit" | "gbprimepay" | "2c2p" | null {
   if (process.env.OMISE_SECRET_KEY)       return "omise"
+  if (process.env.XENDIT_SECRET_KEY)      return "xendit"
   if (process.env.GBPAY_SECRET_KEY)       return "gbprimepay"
   if (process.env.TWOC2P_SECRET_KEY)      return "2c2p"
   return null
+}
+
+// ─── Xendit Basic Auth header ─────────────────────────────────────────────────
+function xenditAuth() {
+  return `Basic ${Buffer.from(`${process.env.XENDIT_SECRET_KEY}:`).toString("base64")}`
 }
 
 export async function paymentRoutes(app: FastifyInstance) {
@@ -53,32 +60,46 @@ export async function paymentRoutes(app: FastifyInstance) {
     return reply.code(201).send({ success: true, data: payment })
   })
 
-  // ── PromptPay QR ─────────────────────────────────────────────────────────
+  // ── PromptPay QR (Xendit) ────────────────────────────────────────────────
   app.post("/promptpay-qr", { preHandler: [requireAuth] }, async (request) => {
     const { amount, orderId } = request.body as { amount: number; orderId: string }
 
-    const gbPayResponse = await axios.post(
-      "https://api.gbprimepay.com/gbp/gateway/qrcode/v2",
-      {
-        token: process.env.GBPAY_SECRET_KEY,
-        amount: amount.toFixed(2),
-        referenceNo: orderId,
-        backgroundUrl: `${process.env.API_URL}/api/payments/webhook/gbpay`,
-      }
-    ).catch(() => null)
-
-    if (!gbPayResponse) {
-      return {
-        success: true,
-        data: {
-          type: "promptpay",
-          promptpayId: process.env.PROMPTPAY_ID || "0812345678",
-          amount,
-          orderId,
+    if (process.env.XENDIT_SECRET_KEY) {
+      try {
+        const res = await axios.post(
+          "https://api.xendit.co/qr_codes",
+          {
+            reference_id: orderId,
+            type: "DYNAMIC",
+            currency: "THB",
+            amount,
+            callback_url: `${process.env.API_URL}/api/payments/webhook/xendit`,
+          },
+          { headers: { Authorization: xenditAuth() } }
+        )
+        const d = res.data
+        if (d.qr_string) {
+          // Convert EMVCo QR string → base64 PNG image for frontend
+          const qrImage = await QRCode.toDataURL(d.qr_string, { width: 260, margin: 2 })
+          return {
+            success: true,
+            data: { qrImage, xenditId: d.id },
+          }
         }
+      } catch (e: any) {
+        app.log.warn({ err: e?.response?.data || e?.message }, "Xendit QR request failed")
       }
     }
-    return { success: true, data: gbPayResponse.data }
+
+    // Fallback: show static PromptPay ID (manual transfer flow)
+    return {
+      success: true,
+      data: {
+        promptpayId: process.env.PROMPTPAY_ID || "0812345678",
+        amount,
+        orderId,
+      },
+    }
   })
 
   // ── Card Payment Session ─────────────────────────────────────────────────
@@ -219,8 +240,9 @@ export async function paymentRoutes(app: FastifyInstance) {
         cardGateway: gateway,
         configured: gateway !== null,
         publicKeys: {
-          omise: process.env.OMISE_PUBLIC_KEY ?? null,        // used by Omise.js frontend tokenization
-          gbprimepay: process.env.GBPAY_PUBLIC_KEY ?? null,   // used by GB Prime Pay.js
+          omise: process.env.OMISE_PUBLIC_KEY ?? null,
+          xendit: process.env.XENDIT_PUBLIC_KEY ?? null,
+          gbprimepay: process.env.GBPAY_PUBLIC_KEY ?? null,
         }
       }
     }
@@ -251,6 +273,37 @@ export async function paymentRoutes(app: FastifyInstance) {
       .where(eq(orders.id, orderId))
 
     return { success: true, data: payment }
+  })
+
+  // ── Webhook: Xendit QR Payment ───────────────────────────────────────────
+  app.post("/webhook/xendit", async (request, reply) => {
+    // Verify webhook token
+    const token = request.headers["x-callback-token"]
+    if (process.env.XENDIT_WEBHOOK_TOKEN && token !== process.env.XENDIT_WEBHOOK_TOKEN) {
+      return reply.code(401).send({ success: false })
+    }
+    const body = request.body as any
+    // QR payment completed
+    if (body.event === "qr.payment" && body.data?.status === "COMPLETED") {
+      const orderId: string = body.data.reference_id
+      try {
+        const order = await db.query.orders.findFirst({ where: eq(orders.id, orderId) })
+        if (order && order.status === "pending_payment") {
+          await db.insert(payments).values({
+            orderId,
+            method: "promptpay",
+            amount: order.total,
+            status: "verified",
+            reference: body.data.id,
+            verifiedAt: new Date(),
+          }).onConflictDoNothing()
+          await db.update(orders).set({ status: "paid", updatedAt: new Date() }).where(eq(orders.id, orderId))
+        }
+      } catch (e) {
+        app.log.error(e, "Xendit webhook processing error")
+      }
+    }
+    return { success: true }
   })
 
   // ── Webhook: GB Prime Pay ─────────────────────────────────────────────────
