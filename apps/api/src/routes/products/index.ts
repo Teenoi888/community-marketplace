@@ -6,8 +6,25 @@ import { eq, ilike, and } from "drizzle-orm"
 import { requireAuth } from "../../middleware/auth.js"
 import { haversineDistanceKm } from "../../lib/geo.js"
 import postgres from "postgres"
+import Redis from "ioredis"
 
-const sql = postgres(process.env.DATABASE_URL!, { max: 1 })
+const sql = postgres(process.env.DATABASE_URL!, { max: 10 })
+
+// Redis cache — graceful fallback if not configured
+const redis = process.env.REDIS_URL
+  ? new Redis(process.env.REDIS_URL, { lazyConnect: true, enableOfflineQueue: false })
+  : null
+if (redis) redis.on("error", () => {}) // suppress unhandled errors
+
+async function cacheGet(key: string): Promise<any | null> {
+  try { const v = await redis?.get(key); return v ? JSON.parse(v) : null } catch { return null }
+}
+async function cacheSet(key: string, value: any, ttlSec = 30): Promise<void> {
+  try { await redis?.setex(key, ttlSec, JSON.stringify(value)) } catch {}
+}
+async function cacheDel(...keys: string[]): Promise<void> {
+  try { if (keys.length) await redis?.del(...keys) } catch {}
+}
 
 /** postgres.js returns jsonb columns as strings when using raw SQL — parse safely */
 function parseImages(val: any): string[] {
@@ -46,6 +63,14 @@ export async function productRoutes(app: FastifyInstance) {
     const limitN = Math.min(Number(limit), 50)
     const offset = (Number(page) - 1) * limitN
     const origin = lat && lng ? { lat: Number(lat), lng: Number(lng) } : null
+
+    // Cache public marketplace listings (no user-specific data, no geo)
+    if (!seller && !origin) {
+      const cacheKey = `products:${category || ""}:${province || ""}:${search || ""}:${page}:${limit}`
+      const cached = await cacheGet(cacheKey)
+      if (cached) return cached
+      // will fall through and set cache below
+    }
 
     // If seller=me, return products from ALL shops the user owns
     if (seller === "me") {
@@ -131,7 +156,13 @@ export async function productRoutes(app: FastifyInstance) {
       offset,
     })
 
-    return { success: true, data: rows }
+    const result = { success: true, data: rows }
+    // Cache public listing results for 30s
+    if (!seller && !origin) {
+      const cacheKey = `products:${category || ""}:${province || ""}:${search || ""}:${page}:${limit}`
+      await cacheSet(cacheKey, result, 30)
+    }
+    return result
   })
 
   // GET /products/recommendations/home — popular products for homepage (most ordered + reviewed)
@@ -288,6 +319,7 @@ export async function productRoutes(app: FastifyInstance) {
       ...body,
       price: body.price.toString(),
     }).returning()
+    await cacheDel("products:::::1:20") // bust default listing
     return reply.code(201).send({ success: true, data: product })
   })
 
@@ -300,6 +332,7 @@ export async function productRoutes(app: FastifyInstance) {
       price: updates.price?.toString(),
       updatedAt: new Date(),
     }).where(eq(products.id, id)).returning()
+    await cacheDel("products:::::1:20")
     return { success: true, data: updated }
   })
 
@@ -307,6 +340,7 @@ export async function productRoutes(app: FastifyInstance) {
   app.delete("/:id", { preHandler: [requireAuth] }, async (request, reply) => {
     const { id } = request.params as { id: string }
     await db.delete(products).where(eq(products.id, id))
+    await cacheDel("products:::::1:20")
     return { success: true }
   })
 }
