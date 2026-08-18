@@ -69,6 +69,7 @@ export async function paymentRoutes(app: FastifyInstance) {
         const res = await axios.post(
           "https://api.xendit.co/qr_codes",
           {
+            external_id: orderId,
             reference_id: orderId,
             type: "DYNAMIC",
             currency: "THB",
