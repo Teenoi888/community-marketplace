@@ -85,6 +85,15 @@ await app.register(rateLimit, { max: 200, timeWindow: "1 minute" })
 await app.register(websocket)
 await app.register(multipart, { limits: { fileSize: 5 * 1024 * 1024 } }) // 5MB
 
+// Parse application/x-www-form-urlencoded (needed for GBPrimePay webhook)
+app.addContentTypeParser("application/x-www-form-urlencoded", { parseAs: "string" }, (_req, body, done) => {
+  try {
+    done(null, Object.fromEntries(new URLSearchParams(body as string)))
+  } catch (e: any) {
+    done(e, undefined)
+  }
+})
+
 // Health check
 app.get("/health", async () => ({ status: "ok", ts: new Date().toISOString() }))
 
