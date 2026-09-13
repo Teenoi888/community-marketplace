@@ -2,9 +2,10 @@ import { View, Text, TouchableOpacity, TextInput, FlatList, Alert } from "react-
 import { SafeAreaView } from "react-native-safe-area-context"
 import { router, useLocalSearchParams } from "expo-router"
 import { useEffect, useRef, useState } from "react"
+import type { RTCPeerConnection as RTCPeerConnectionT, MediaStream as MediaStreamT } from "react-native-webrtc"
 import {
-  RTCPeerConnection, RTCSessionDescription, RTCIceCandidate, RTCView, MediaStream,
-} from "react-native-webrtc"
+  RTCPeerConnection, RTCSessionDescription, RTCIceCandidate, RTCView, isWebRTCAvailable,
+} from "../../../lib/webrtc"
 import { api } from "../../../lib/api"
 import { useAuthStore } from "../../../lib/store/auth"
 import { useCartStore } from "../../../lib/store/cart"
@@ -28,13 +29,26 @@ function uuid() {
   })
 }
 
+function UnsupportedScreen() {
+  return (
+    <SafeAreaView className="flex-1 bg-gray-950 items-center justify-center gap-4 px-6">
+      <Text className="text-5xl">📡</Text>
+      <Text className="text-white font-semibold text-lg text-center">ฟีเจอร์ไลฟ์สดใช้ไม่ได้ในโหมดนี้</Text>
+      <Text className="text-gray-400 text-sm text-center">ต้องเปิดผ่านแอปที่ build มาเฉพาะ (dev/production build) — ใช้งานไม่ได้ใน Expo Go</Text>
+      <TouchableOpacity onPress={() => router.back()} className="bg-primary-600 rounded-xl px-6 py-3">
+        <Text className="text-white font-semibold">กลับ</Text>
+      </TouchableOpacity>
+    </SafeAreaView>
+  )
+}
+
 export default function LiveViewerScreen() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const user = useAuthStore(s => s.user)
   const addToCart = useCartStore(s => s.addItem)
 
   const wsRef = useRef<WebSocket | null>(null)
-  const pcRef = useRef<RTCPeerConnection | null>(null)
+  const pcRef = useRef<RTCPeerConnectionT | null>(null)
   const viewerIdRef = useRef(uuid())
 
   const [session, setSession] = useState<SessionInfo | null>(null)
@@ -60,14 +74,14 @@ export default function LiveViewerScreen() {
   }
 
   useEffect(() => {
-    if (ended) return
+    if (ended || !isWebRTCAvailable) return
 
-    const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS })
+    const pc = new (RTCPeerConnection!)({ iceServers: ICE_SERVERS })
     pcRef.current = pc
 
     // @ts-expect-error react-native-webrtc's ontrack event isn't in the base RN WebRTC types
     pc.ontrack = (e: any) => {
-      const stream = e.streams?.[0] as MediaStream | undefined
+      const stream = e.streams?.[0] as MediaStreamT | undefined
       if (stream) setRemoteStreamURL(stream.toURL())
     }
 
@@ -88,12 +102,12 @@ export default function LiveViewerScreen() {
     ws.onmessage = async (e) => {
       const msg = JSON.parse(e.data)
       if (msg.type === "offer") {
-        await pc.setRemoteDescription(new RTCSessionDescription(msg.offer))
+        await pc.setRemoteDescription(new (RTCSessionDescription!)(msg.offer))
         const answer = await pc.createAnswer()
         await pc.setLocalDescription(answer)
         ws.send(JSON.stringify({ type: "answer", answer, viewerId: viewerIdRef.current }))
       } else if (msg.type === "ice") {
-        if (msg.candidate) await pc.addIceCandidate(new RTCIceCandidate(msg.candidate))
+        if (msg.candidate) await pc.addIceCandidate(new (RTCIceCandidate!)(msg.candidate))
       } else if (msg.type === "chat") {
         setChat(prev => [...prev, msg])
       } else if (msg.type === "chat_history") {
@@ -124,6 +138,8 @@ export default function LiveViewerScreen() {
     Alert.alert("สำเร็จ", `เพิ่ม "${p.name}" ลงตะกร้าแล้ว`)
   }
 
+  if (!isWebRTCAvailable) return <UnsupportedScreen />
+
   if (ended) {
     return (
       <SafeAreaView className="flex-1 bg-gray-950 items-center justify-center gap-4">
@@ -136,11 +152,13 @@ export default function LiveViewerScreen() {
     )
   }
 
+  const Video = RTCView!
+
   return (
     <SafeAreaView className="flex-1 bg-gray-950">
       <View className="flex-1 bg-black relative">
         {remoteStreamURL ? (
-          <RTCView streamURL={remoteStreamURL} style={{ flex: 1 }} objectFit="cover" />
+          <Video streamURL={remoteStreamURL} style={{ flex: 1 }} objectFit="cover" />
         ) : (
           <View className="flex-1 items-center justify-center"><Text className="text-gray-400">กำลังเชื่อมต่อ...</Text></View>
         )}

@@ -1,0 +1,33 @@
+{
+  "cli": {
+    "version": ">= 12.0.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://localhost:3001/api"
+      }
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": { "buildType": "apk" },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://cmapi-production-5f4f.up.railway.app/api",
+        "EXPO_PUBLIC_WEB_URL": "https://cmweb-production-5bff.up.railway.app"
+      }
+    },
+    "production": {
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://cmapi-production-5f4f.up.railway.app/api",
+        "EXPO_PUBLIC_WEB_URL": "https://cmweb-production-5bff.up.railway.app"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

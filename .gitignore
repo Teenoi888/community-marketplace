@@ -8,4 +8,5 @@ dist/
 !.env.example
 *.log
 .DS_Store
+.expo/
 apps/web/next.config.ts
