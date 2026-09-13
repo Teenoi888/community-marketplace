@@ -8,7 +8,6 @@ import { toast } from "sonner"
 import { Store, Phone, Lock, Mail, KeyRound, Eye, EyeOff } from "lucide-react"
 import { RiLineFill } from "react-icons/ri"
 import { FcGoogle } from "react-icons/fc"
-import { FaFacebook } from "react-icons/fa"
 import { api } from "@/lib/api"
 import { useAuthStore } from "@/lib/store/auth"
 import { useCooldown } from "@/lib/hooks/useCooldown"
@@ -121,20 +120,22 @@ export default function LoginPage() {
           <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-800">
             <p className="font-semibold mb-1">⚠️ กรุณาเปิดใน Browser ภายนอก</p>
             <p className="text-xs text-amber-700">
-              การเข้าสู่ระบบด้วย Google หรือ Facebook ไม่รองรับใน LINE / Facebook App
+              การเข้าสู่ระบบด้วย Google ไม่รองรับใน LINE / Facebook App
               กรุณาคัดลอก URL แล้วเปิดใน Chrome หรือ Safari
             </p>
           </div>
         )}
 
-        {/* Social Login */}
+        {/* Social Login — Facebook hidden until the app passes Meta's Business
+            Verification and is published; until then it only works for
+            testers added in the Facebook app's own dashboard and shows a
+            broken-app error for everyone else. */}
         <div className="mb-4">
-          <div className="grid grid-cols-3 gap-2.5 mb-2.5">
+          <div className="grid grid-cols-2 gap-2.5 mb-2.5">
             <span />
             <p className="text-center text-lg font-bold text-gray-700">เข้าสู่ระบบด้วย</p>
-            <span />
           </div>
-          <div className="grid grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-2 gap-2.5">
             <a
               href={`${process.env.NEXT_PUBLIC_API_URL}/line/auth`}
               className="flex items-center justify-center gap-1.5 w-full py-3 px-2 bg-white border border-gray-200 shadow-sm hover:bg-gray-50 rounded-xl transition-colors"
@@ -160,24 +161,6 @@ export default function LoginPage() {
               >
                 <FcGoogle className="w-6 h-6 shrink-0" />
                 <span className="text-sm font-semibold text-gray-800">Google</span>
-              </a>
-            )}
-            {webView ? (
-              <button
-                type="button"
-                onClick={() => toast.error("กรุณาเปิดลิงก์ใน Chrome หรือ Safari ก่อนเข้าสู่ระบบด้วย Facebook")}
-                className="flex items-center justify-center gap-1.5 w-full py-3 px-2 bg-gray-100 border border-gray-200 rounded-xl opacity-60 cursor-not-allowed"
-              >
-                <FaFacebook className="w-6 h-6 shrink-0 text-[#1877F2]" />
-                <span className="text-sm font-semibold text-gray-500">Facebook</span>
-              </button>
-            ) : (
-              <a
-                href={`${process.env.NEXT_PUBLIC_API_URL}/facebook/auth`}
-                className="flex items-center justify-center gap-1.5 w-full py-3 px-2 bg-white border border-gray-200 shadow-sm hover:bg-gray-50 rounded-xl transition-colors"
-              >
-                <FaFacebook className="w-6 h-6 shrink-0 text-[#1877F2]" />
-                <span className="text-sm font-semibold text-gray-800">Facebook</span>
               </a>
             )}
           </div>

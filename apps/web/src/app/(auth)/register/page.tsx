@@ -8,7 +8,6 @@ import { toast } from "sonner"
 import { Store, Phone, Lock, User, Eye, EyeOff, Mail } from "lucide-react"
 import { RiLineFill } from "react-icons/ri"
 import { FcGoogle } from "react-icons/fc"
-import { FaFacebook } from "react-icons/fa"
 import { api } from "@/lib/api"
 import { useAuthStore } from "@/lib/store/auth"
 import { useRouter } from "next/navigation"
@@ -66,14 +65,14 @@ export default function RegisterPage() {
           <p className="text-gray-500 text-sm mt-1">สมัครสมาชิกเพื่อเริ่มซื้อ-ขายสินค้า</p>
         </div>
 
-        {/* Social Register */}
+        {/* Social Register — Facebook hidden until the app passes Meta's
+            Business Verification and is published; see login/page.tsx */}
         <div className="mb-4">
-          <div className="grid grid-cols-3 gap-2.5 mb-2.5">
+          <div className="grid grid-cols-2 gap-2.5 mb-2.5">
             <span />
             <p className="text-center text-lg font-bold text-gray-700">สมัครด้วย</p>
-            <span />
           </div>
-          <div className="grid grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-2 gap-2.5">
             <a
               href={`${process.env.NEXT_PUBLIC_API_URL}/line/auth`}
               className="flex items-center justify-center gap-1.5 w-full py-3 px-2 bg-white border border-gray-200 shadow-sm hover:bg-gray-50 rounded-xl transition-colors"
@@ -89,13 +88,6 @@ export default function RegisterPage() {
             >
               <FcGoogle className="w-6 h-6 shrink-0" />
               <span className="text-sm font-semibold text-gray-800">Google</span>
-            </a>
-            <a
-              href={`${process.env.NEXT_PUBLIC_API_URL}/facebook/auth`}
-              className="flex items-center justify-center gap-1.5 w-full py-3 px-2 bg-white border border-gray-200 shadow-sm hover:bg-gray-50 rounded-xl transition-colors"
-            >
-              <FaFacebook className="w-6 h-6 shrink-0 text-[#1877F2]" />
-              <span className="text-sm font-semibold text-gray-800">Facebook</span>
             </a>
           </div>
         </div>
