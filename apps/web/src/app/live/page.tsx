@@ -9,8 +9,22 @@ import { api } from "@/lib/api"
 import { MainNav } from "@/components/layout/MainNav"
 import { useAuthStore } from "@/lib/store/auth"
 import { toast } from "sonner"
+import { LIVE_ENABLED } from "@/lib/features"
 
 export default function LiveListPage() {
+  if (!LIVE_ENABLED) {
+    return (
+      <main className="min-h-screen bg-gray-50">
+        <MainNav />
+        <div className="max-w-4xl mx-auto px-4 py-20 text-center">
+          <Radio className="w-16 h-16 text-gray-200 mx-auto mb-3" />
+          <p className="text-gray-500 font-medium">ฟีเจอร์ไลฟ์สดปิดปรับปรุงชั่วคราว</p>
+          <Link href="/" className="text-primary-600 text-sm mt-2 inline-block">กลับหน้าแรก</Link>
+        </div>
+      </main>
+    )
+  }
+
   const [sessions, setSessions] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [creating, setCreating] = useState(false)
