@@ -8,6 +8,7 @@ import { CategoryBar } from "@/components/marketplace/CategoryBar"
 import { LiveRow } from "@/components/marketplace/LiveRow"
 import { PopularProductsRow } from "@/components/marketplace/PopularProductsRow"
 import { FlashSaleRow } from "@/components/marketplace/FlashSaleRow"
+import { LIVE_ENABLED } from "@/lib/features"
 
 export default function HomePage() {
   return (
@@ -15,7 +16,7 @@ export default function HomePage() {
       <MainNav />
       <HeroSection />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-10">
-        <LiveRow />
+        {LIVE_ENABLED && <LiveRow />}
         <PromoBanner />
 
         <section>

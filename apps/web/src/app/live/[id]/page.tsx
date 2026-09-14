@@ -8,6 +8,7 @@ import { useCartStore } from "@/lib/store/cart"
 import { Radio, Users, Send, ShoppingCart, Pin, ArrowLeft, Volume2, VolumeX } from "lucide-react"
 import { toast } from "sonner"
 import Link from "next/link"
+import { LIVE_ENABLED } from "@/lib/features"
 
 const WS_URL = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api")
   .replace(/^http/, "ws")
@@ -18,6 +19,16 @@ interface SessionInfo { id: string; title: string; shop_name: string; seller_nam
 interface PinnedProduct { id: string; name: string; price: string; images: string[]; stock: number; shop_id: string; shop_name: string }
 
 export default function ViewerPage() {
+  if (!LIVE_ENABLED) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center text-white gap-4">
+        <Radio className="w-16 h-16 text-gray-600" />
+        <h2 className="text-xl font-semibold">ฟีเจอร์ไลฟ์สดปิดปรับปรุงชั่วคราว</h2>
+        <Link href="/" className="btn-primary">กลับหน้าแรก</Link>
+      </div>
+    )
+  }
+
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const user = useAuthStore(s => s.user)
