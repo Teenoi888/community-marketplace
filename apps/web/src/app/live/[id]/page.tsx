@@ -19,16 +19,6 @@ interface SessionInfo { id: string; title: string; shop_name: string; seller_nam
 interface PinnedProduct { id: string; name: string; price: string; images: string[]; stock: number; shop_id: string; shop_name: string }
 
 export default function ViewerPage() {
-  if (!LIVE_ENABLED) {
-    return (
-      <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center text-white gap-4">
-        <Radio className="w-16 h-16 text-gray-600" />
-        <h2 className="text-xl font-semibold">ฟีเจอร์ไลฟ์สดปิดปรับปรุงชั่วคราว</h2>
-        <Link href="/" className="btn-primary">กลับหน้าแรก</Link>
-      </div>
-    )
-  }
-
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
   const user = useAuthStore(s => s.user)
@@ -67,10 +57,14 @@ export default function ViewerPage() {
     addFloating(emoji) // show locally immediately
   }
 
-  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: "smooth" }) }, [chat])
+  useEffect(() => {
+    if (!LIVE_ENABLED) return
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [chat])
 
   // Load session info
   useEffect(() => {
+    if (!LIVE_ENABLED) return
     api.get(`/live/${id}`).then(r => {
       const s = r.data.data
       setSession(s)
@@ -89,7 +83,7 @@ export default function ViewerPage() {
   }
 
   useEffect(() => {
-    if (ended) return
+    if (!LIVE_ENABLED || ended) return
 
     const remoteStream = new MediaStream()
 
@@ -191,6 +185,16 @@ export default function ViewerPage() {
       pcRef.current?.close()
     }
   }, [id, ended])   // ไม่ใส่ user — ใช้ getState() ใน onopen แทน เพื่อป้องกัน re-connect 2 รอบ
+
+  if (!LIVE_ENABLED) {
+    return (
+      <div className="min-h-screen bg-gray-950 flex flex-col items-center justify-center text-white gap-4">
+        <Radio className="w-16 h-16 text-gray-600" />
+        <h2 className="text-xl font-semibold">ฟีเจอร์ไลฟ์สดปิดปรับปรุงชั่วคราว</h2>
+        <Link href="/" className="btn-primary">กลับหน้าแรก</Link>
+      </div>
+    )
+  }
 
   function sendChat() {
     if (!chatInput.trim() || !wsRef.current) return
