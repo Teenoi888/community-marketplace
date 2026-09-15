@@ -68,10 +68,7 @@ export default function RegisterPage() {
         {/* Social Register — Facebook hidden until the app passes Meta's
             Business Verification and is published; see login/page.tsx */}
         <div className="mb-4">
-          <div className="grid grid-cols-2 gap-2.5 mb-2.5">
-            <span />
-            <p className="text-center text-lg font-bold text-gray-700">สมัครด้วย</p>
-          </div>
+          <p className="text-center text-lg font-bold text-gray-700 mb-2.5">สมัครด้วย</p>
           <div className="grid grid-cols-2 gap-2.5">
             <a
               href={`${process.env.NEXT_PUBLIC_API_URL}/line/auth`}
