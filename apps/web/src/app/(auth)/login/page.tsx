@@ -131,10 +131,7 @@ export default function LoginPage() {
             testers added in the Facebook app's own dashboard and shows a
             broken-app error for everyone else. */}
         <div className="mb-4">
-          <div className="grid grid-cols-2 gap-2.5 mb-2.5">
-            <span />
-            <p className="text-center text-lg font-bold text-gray-700">เข้าสู่ระบบด้วย</p>
-          </div>
+          <p className="text-center text-lg font-bold text-gray-700 mb-2.5">เข้าสู่ระบบด้วย</p>
           <div className="grid grid-cols-2 gap-2.5">
             <a
               href={`${process.env.NEXT_PUBLIC_API_URL}/line/auth`}
