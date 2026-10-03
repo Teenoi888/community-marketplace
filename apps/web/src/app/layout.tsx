@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Noto_Sans_Thai } from "next/font/google"
 import { Toaster } from "sonner"
 import { Providers } from "@/components/layout/Providers"
+import { SiteFooter } from "@/components/layout/SiteFooter"
 import "./globals.css"
 
 const notoSansThai = Noto_Sans_Thai({
@@ -27,6 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="font-sans bg-gray-50 text-gray-900 antialiased">
         <Providers>
           {children}
+          <SiteFooter />
           <Toaster position="top-center" richColors duration={1500} />
         </Providers>
       </body>

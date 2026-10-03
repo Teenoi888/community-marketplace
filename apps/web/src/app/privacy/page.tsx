@@ -1,12 +1,13 @@
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { MainNav } from "@/components/layout/MainNav"
+import { COMPANY } from "@/lib/company"
 
 export const metadata = {
   title: "นโยบายความเป็นส่วนตัว",
 }
 
-const UPDATED_AT = "20 กันยายน 2569"
+const UPDATED_AT = "3 ตุลาคม 2569"
 
 export default function PrivacyPolicyPage() {
   return (
@@ -24,7 +25,7 @@ export default function PrivacyPolicyPage() {
           </div>
 
           <p>
-            &quot;ตลาดชุมชน&quot; (&quot;เรา&quot;) ให้ความสำคัญกับความเป็นส่วนตัวของผู้ใช้งานทุกคน นโยบายนี้อธิบายว่าเราเก็บรวบรวม
+            &quot;ตลาดชุมชน&quot; ให้บริการโดย {COMPANY.nameTh} (&quot;เรา&quot;) ในฐานะผู้ควบคุมข้อมูลส่วนบุคคล ให้ความสำคัญกับความเป็นส่วนตัวของผู้ใช้งานทุกคน นโยบายนี้อธิบายว่าเราเก็บรวบรวม
             ใช้ และเปิดเผยข้อมูลส่วนบุคคลของท่านอย่างไรเมื่อใช้งานเว็บไซต์และแอปพลิเคชันมือถือของเรา
           </p>
 
@@ -60,7 +61,7 @@ export default function PrivacyPolicyPage() {
             <p className="mb-2">เราไม่ขายข้อมูลส่วนบุคคลของท่าน แต่อาจแบ่งปันข้อมูลเท่าที่จำเป็นกับ:</p>
             <ul className="list-disc pl-5 space-y-1.5">
               <li>ผู้ขาย/ผู้ซื้อที่ท่านทำธุรกรรมด้วย (เช่น ชื่อและที่อยู่จัดส่งสำหรับการส่งสินค้า)</li>
-              <li>ผู้ให้บริการชำระเงิน (เช่น GB Prime Pay, Omise, 2C2P) เพื่อประมวลผลการชำระเงิน</li>
+              <li>ผู้ให้บริการชำระเงิน (เช่น Xendit) เพื่อประมวลผลการชำระเงิน คืนเงิน และป้องกันการทุจริต</li>
               <li>ผู้ให้บริการล็อกอิน (LINE, Google, Facebook) เมื่อท่านเลือกเข้าสู่ระบบผ่านช่องทางนั้น</li>
               <li>ผู้ให้บริการโครงสร้างพื้นฐานทางเทคนิค เช่น ผู้ให้บริการเซิร์ฟเวอร์และพื้นที่จัดเก็บไฟล์</li>
               <li>หน่วยงานราชการ เมื่อกฎหมายกำหนดให้ต้องเปิดเผย</li>
@@ -120,7 +121,8 @@ export default function PrivacyPolicyPage() {
               สามารถติดต่อเราได้ที่อีเมล{" "}
               <a href="mailto:privacy@chumchon.market" className="text-primary-600 underline">
                 privacy@chumchon.market
-              </a>
+              </a>{" "}
+              หรือ {COMPANY.nameTh} {COMPANY.addressTh} โทร {COMPANY.phone}
             </p>
           </section>
         </div>

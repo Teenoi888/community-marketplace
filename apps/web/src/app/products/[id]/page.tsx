@@ -97,6 +97,17 @@ export default function ProductDetailPage() {
   const [reviewComment, setReviewComment] = useState("")
   const [submittingReview, setSubmittingReview] = useState(false)
 
+  const [categoryLabel, setCategoryLabel] = useState<string | null>(null)
+  useEffect(() => {
+    if (!product?.category) return
+    api.get("/categories")
+      .then((r) => {
+        const found = (r.data.data as { slug: string; name: string }[]).find((c) => c.slug === product.category)
+        setCategoryLabel(found?.name ?? null)
+      })
+      .catch(() => {})
+  }, [product?.category])
+
   useEffect(() => {
     api.get(`/products/${id}`)
       .then(r => {
@@ -278,7 +289,7 @@ export default function ProductDetailPage() {
             {/* 1. Identity: category, title, rating */}
             <div>
               <span className="inline-block text-xs font-semibold text-primary-700 bg-primary-50 px-2.5 py-1 rounded-full border border-primary-100">
-                {product.category}
+                {categoryLabel ?? product.category}
               </span>
               <h1 className="text-2xl font-bold text-gray-900 mt-2">{product.name}</h1>
               {totalReviews > 0 && (
