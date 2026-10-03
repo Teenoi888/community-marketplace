@@ -16,7 +16,8 @@ const createPaymentSchema = z.object({
 // ─── Detect which card gateway is configured ─────────────────────────────────
 function detectCardGateway(): "omise" | "xendit" | "gbprimepay" | "2c2p" | null {
   if (process.env.OMISE_SECRET_KEY)       return "omise"
-  if (process.env.XENDIT_SECRET_KEY)      return "xendit"
+  // Xendit key ใช้กับ PromptPay QR เสมอ แต่ช่องทางบัตรต้องเปิดแยก (หลัง Xendit อนุมัติ channel บัตรแล้ว)
+  if (process.env.XENDIT_SECRET_KEY && process.env.XENDIT_CARD_ENABLED === "true") return "xendit"
   if (process.env.GBPAY_SECRET_KEY)       return "gbprimepay"
   if (process.env.TWOC2P_SECRET_KEY)      return "2c2p"
   return null

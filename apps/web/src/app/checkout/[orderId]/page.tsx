@@ -222,12 +222,15 @@ export default function PaymentPage({ params }: { params: { orderId: string } })
         )}
 
         {/* Method tabs */}
-        <div className={`grid ${isXendit ? "grid-cols-2" : "grid-cols-3"} gap-2 mb-6`}>
+        <div className={`grid ${gatewayInfo?.configured && !isXendit ? "grid-cols-3" : "grid-cols-2"} gap-2 mb-6`}>
           {([
             { id: "promptpay",    label: "📱 PromptPay / QR" },
             { id: "bank_transfer",label: "🏦 โอนธนาคาร" },
             { id: "credit_card",  label: "💳 บัตรเครดิต/เดบิต" },
-          ] as const).filter(({ id }) => !(isXendit && id === "bank_transfer")).map(({ id, label }) => (
+          ] as const).filter(({ id }) =>
+            // บัตร: แสดงเฉพาะเมื่อเปิด card gateway แล้ว / โอนธนาคาร: ซ่อนเมื่อใช้ Xendit บัตรได้แล้ว
+            id === "credit_card" ? !!gatewayInfo?.configured : !(isXendit && id === "bank_transfer")
+          ).map(({ id, label }) => (
             <button
               key={id}
               onClick={() => setMethod(id)}
