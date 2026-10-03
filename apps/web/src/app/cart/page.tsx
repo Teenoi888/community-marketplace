@@ -138,7 +138,7 @@ export default function CartPage() {
                 </div>
                 <div className="flex justify-between text-sm text-gray-600">
                   <span>ค่าจัดส่ง</span>
-                  <span className="text-green-600">ฟรี (ชำระปลายทาง)</span>
+                  <span className="text-green-600">ฟรี</span>
                 </div>
                 <div className="border-t border-gray-100 pt-2 flex justify-between font-bold text-gray-900">
                   <span>รวมทั้งหมด</span>

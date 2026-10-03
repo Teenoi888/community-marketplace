@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify"
 import { z } from "zod"
 import { db } from "../../db/index.js"
-import { orders, orderItems, products, shops, coupons, couponRedemptions } from "../../db/schema.js"
+import { orders, orderItems, products, shops, users, coupons, couponRedemptions } from "../../db/schema.js"
 import { eq, sql } from "drizzle-orm"
 import { requireAuth } from "../../middleware/auth.js"
 import { notifyOrderStatus } from "../../lib/notify.js"
@@ -9,6 +9,22 @@ import { findValidCoupon } from "../coupons/index.js"
 import postgres from "postgres"
 
 const rawSql = postgres(process.env.DATABASE_URL!, { max: 1 })
+
+// ── Who may change an order? ────────────────────────────────────────────────
+// admin → ทุกสถานะ | เจ้าของร้าน → preparing/shipped/delivered/cancelled
+// ผู้ซื้อ → ยืนยันรับสินค้า (shipped → delivered) เท่านั้น
+// สถานะ "paid" ต้องมาจากระบบชำระเงิน (webhook) เท่านั้น ห้ามตั้งเองผ่าน endpoint นี้
+async function getOrderRole(userId: string, orderId: string) {
+  const order = await db.query.orders.findFirst({ where: eq(orders.id, orderId) })
+  if (!order) return { order: null, role: null as null | "admin" | "seller" | "buyer" }
+  const user = await db.query.users.findFirst({ where: eq(users.id, userId) })
+  if (user?.role === "admin") return { order, role: "admin" as const }
+  const shop = await db.query.shops.findFirst({ where: eq(shops.id, order.shopId) })
+  if (shop?.ownerId === userId) return { order, role: "seller" as const }
+  if (order.buyerId === userId) return { order, role: "buyer" as const }
+  return { order, role: null }
+}
+const SELLER_SETTABLE = ["preparing", "shipped", "delivered", "cancelled"]
 
 async function sendLineNotify(token: string, message: string) {
   try {
@@ -167,6 +183,9 @@ export async function orderRoutes(app: FastifyInstance) {
       with: { items: true },
     })
     if (!order) return reply.code(404).send({ success: false, error: "ไม่พบออเดอร์" })
+    const { userId } = request.user as { userId: string }
+    const { role } = await getOrderRole(userId, id)
+    if (!role) return reply.code(404).send({ success: false, error: "ไม่พบออเดอร์" })
     return { success: true, data: order }
   })
 
@@ -313,9 +332,18 @@ export async function orderRoutes(app: FastifyInstance) {
   })
 
   // Update order status (seller)
-  app.patch("/:id/status", { preHandler: [requireAuth] }, async (request) => {
+  app.patch("/:id/status", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { userId } = request.user as { userId: string }
     const { id } = request.params as { id: string }
     const { status } = request.body as { status: string }
+
+    const { order, role } = await getOrderRole(userId, id)
+    if (!order) return reply.code(404).send({ success: false, error: "ไม่พบออเดอร์" })
+    const allowed =
+      role === "admin" ||
+      (role === "seller" && SELLER_SETTABLE.includes(status)) ||
+      (role === "buyer" && status === "delivered" && order.status === "shipped")
+    if (!allowed) return reply.code(403).send({ success: false, error: "ไม่มีสิทธิ์เปลี่ยนสถานะออเดอร์นี้" })
     const [updated] = await db.update(orders)
       .set({ status: status as any, updatedAt: new Date() })
       .where(eq(orders.id, id))
@@ -333,9 +361,14 @@ export async function orderRoutes(app: FastifyInstance) {
   })
 
   // Update tracking number (seller) — auto-sets status to "shipped"
-  app.patch("/:id/tracking", { preHandler: [requireAuth] }, async (request) => {
+  app.patch("/:id/tracking", { preHandler: [requireAuth] }, async (request, reply) => {
     const { userId } = request.user as { userId: string }
     const { id } = request.params as { id: string }
+    const { order: target, role } = await getOrderRole(userId, id)
+    if (!target) return reply.code(404).send({ success: false, error: "ไม่พบออเดอร์" })
+    if (role !== "admin" && role !== "seller") {
+      return reply.code(403).send({ success: false, error: "เฉพาะร้านค้าเจ้าของออเดอร์เท่านั้น" })
+    }
     const { trackingNumber, logisticsProvider, note } = request.body as {
       trackingNumber: string
       logisticsProvider: string

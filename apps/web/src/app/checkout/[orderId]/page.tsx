@@ -14,7 +14,8 @@ interface OrderData { id: string; total: string; status: string }
 interface GatewayInfo {
   configured: boolean
   cardGateway: string | null
-  publicKeys: { omise: string | null; gbprimepay: string | null }
+  demoEnabled?: boolean
+  publicKeys: { omise: string | null; gbprimepay: string | null; xendit?: string | null }
 }
 
 function formatPrice(n: number) {
@@ -174,6 +175,8 @@ export default function PaymentPage({ params }: { params: { orderId: string } })
     }
   }
 
+  const isXendit = gatewayInfo?.cardGateway === "xendit"
+
   if (payStatus === "verified") {
     return (
       <main>
@@ -199,7 +202,8 @@ export default function PaymentPage({ params }: { params: { orderId: string } })
           <p className="text-gray-500 mb-6">ออเดอร์ #{order.id.slice(0, 8).toUpperCase()} — {formatPrice(Number(order.total))}</p>
         )}
 
-        {/* ── Demo Payment Banner ──────────────────────────────────── */}
+        {/* ── Demo Payment Banner (dev/staging only: PAYMENT_DEMO_ENABLED=true) ── */}
+        {gatewayInfo?.demoEnabled && (
         <div className="mb-6 p-4 bg-violet-50 border border-violet-200 rounded-2xl">
           <div className="flex items-center gap-2 mb-2">
             <FlaskConical className="w-4 h-4 text-violet-600" />
@@ -215,14 +219,15 @@ export default function PaymentPage({ params }: { params: { orderId: string } })
             {demoLoading ? "กำลังดำเนินการ..." : `จำลองชำระเงิน ${order ? formatPrice(Number(order.total)) : ""}`}
           </button>
         </div>
+        )}
 
         {/* Method tabs */}
-        <div className="grid grid-cols-3 gap-2 mb-6">
+        <div className={`grid ${isXendit ? "grid-cols-2" : "grid-cols-3"} gap-2 mb-6`}>
           {([
             { id: "promptpay",    label: "📱 PromptPay / QR" },
             { id: "bank_transfer",label: "🏦 โอนธนาคาร" },
-            { id: "credit_card",  label: "💳 บัตรเครดิต" },
-          ] as const).map(({ id, label }) => (
+            { id: "credit_card",  label: "💳 บัตรเครดิต/เดบิต" },
+          ] as const).filter(({ id }) => !(isXendit && id === "bank_transfer")).map(({ id, label }) => (
             <button
               key={id}
               onClick={() => setMethod(id)}
@@ -322,12 +327,29 @@ export default function PaymentPage({ params }: { params: { orderId: string } })
               <div className="flex items-start gap-3 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
                 <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-semibold">Payment Gateway ยังไม่ได้เชื่อมต่อ</p>
-                  <p className="text-xs mt-0.5 text-amber-600">ใส่ key ใน Railway env vars: <code>OMISE_SECRET_KEY</code>, <code>OMISE_PUBLIC_KEY</code> เพื่อเปิดใช้งาน</p>
+                  <p className="font-semibold">ช่องทางบัตรเครดิต/เดบิตยังไม่เปิดให้บริการ</p>
+                  <p className="text-xs mt-0.5 text-amber-600">กรุณาชำระผ่าน PromptPay / QR ไปก่อน</p>
                 </div>
               </div>
             )}
 
+            {isXendit ? (
+              <div className="space-y-4">
+                <p className="text-sm text-gray-600">
+                  เมื่อกดชำระเงิน ระบบจะพาไปยังหน้าชำระเงินที่ปลอดภัยของ Xendit (ผู้ให้บริการชำระเงินมาตรฐาน PCI DSS)
+                  เพื่อกรอกข้อมูลบัตรและยืนยันตัวตน 3-D Secure จากนั้นจะกลับมาที่หน้านี้โดยอัตโนมัติ
+                </p>
+                <button
+                  onClick={submitCard}
+                  disabled={loading}
+                  className="btn-primary w-full py-3.5 flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <Lock className="w-4 h-4" />
+                  {loading ? "กำลังเปิดหน้าชำระเงิน..." : `ชำระด้วยบัตร ${order ? formatPrice(Number(order.total)) : ""}`}
+                </button>
+                <p className="text-xs text-gray-400 text-center">ตลาดชุมชนไม่จัดเก็บข้อมูลบัตรของท่าน</p>
+              </div>
+            ) : (<>
             {/* Card form */}
             <div className="space-y-3">
               <div>
@@ -401,6 +423,7 @@ export default function PaymentPage({ params }: { params: { orderId: string } })
             <p className="text-xs text-gray-400 text-center">
               ข้อมูลบัตรถูกเข้ารหัสด้วย TLS 1.3 • ไม่เก็บข้อมูลบัตรในระบบ
             </p>
+            </>)}
           </div>
         )}
       </div>

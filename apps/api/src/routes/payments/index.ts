@@ -22,6 +22,9 @@ function detectCardGateway(): "omise" | "xendit" | "gbprimepay" | "2c2p" | null 
   return null
 }
 
+// ─── Xendit API base (override only for local testing with a mock server) ─────
+const XENDIT_API_BASE = process.env.XENDIT_API_BASE || "https://api.xendit.co"
+
 // ─── Xendit Basic Auth header ─────────────────────────────────────────────────
 function xenditAuth() {
   return `Basic ${Buffer.from(`${process.env.XENDIT_SECRET_KEY}:`).toString("base64")}`
@@ -67,7 +70,7 @@ export async function paymentRoutes(app: FastifyInstance) {
     if (process.env.XENDIT_SECRET_KEY) {
       try {
         const res = await axios.post(
-          "https://api.xendit.co/qr_codes",
+          `${XENDIT_API_BASE}/qr_codes`,
           {
             external_id: orderId,
             reference_id: orderId,
@@ -178,6 +181,31 @@ export async function paymentRoutes(app: FastifyInstance) {
       }
     }
 
+    // ── Xendit (Hosted Invoice page — card data never touches our server) ──
+    if (gateway === "xendit") {
+      try {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL
+        const res = await axios.post(
+          `${XENDIT_API_BASE}/v2/invoices`,
+          {
+            external_id: order.id,
+            amount: Number(order.total),
+            currency: "THB",
+            description: `ตลาดชุมชน — ออเดอร์ #${order.id.slice(0, 8).toUpperCase()}`,
+            invoice_duration: 3600,
+            payment_methods: ["CREDIT_CARD"],
+            success_redirect_url: `${appUrl}/checkout/${order.id}`,
+            failure_redirect_url: `${appUrl}/checkout/${order.id}`,
+          },
+          { headers: { Authorization: xenditAuth() } }
+        )
+        return { success: true, data: { gateway: "xendit", redirectUrl: res.data.invoice_url, invoiceId: res.data.id } }
+      } catch (err: any) {
+        app.log.error(err?.response?.data || err)
+        return reply.code(500).send({ success: false, error: "Xendit invoice failed" })
+      }
+    }
+
     // ── 2C2P (Payment Link / Hosted Page) ──────────────────────────────────
     if (gateway === "2c2p") {
       // 2C2P ใช้ Payment Token API แล้ว redirect ไปหน้า hosted payment
@@ -240,6 +268,7 @@ export async function paymentRoutes(app: FastifyInstance) {
       data: {
         cardGateway: gateway,
         configured: gateway !== null,
+        demoEnabled: process.env.PAYMENT_DEMO_ENABLED === "true",
         publicKeys: {
           omise: process.env.OMISE_PUBLIC_KEY ?? null,
           xendit: process.env.XENDIT_PUBLIC_KEY ?? null,
@@ -251,6 +280,10 @@ export async function paymentRoutes(app: FastifyInstance) {
 
   // ── Demo Payment (จำลองการชำระ — ใช้สำหรับทดสอบเท่านั้น) ─────────────────
   app.post("/demo", { preHandler: [requireAuth] }, async (request, reply) => {
+    // ปิดไว้เสมอบน production — เปิดเฉพาะเครื่อง dev/staging ด้วย PAYMENT_DEMO_ENABLED=true
+    if (process.env.PAYMENT_DEMO_ENABLED !== "true") {
+      return reply.code(404).send({ success: false, error: "Not found" })
+    }
     const { orderId } = request.body as { orderId: string }
     if (!orderId) return reply.code(400).send({ success: false, error: "ต้องระบุ orderId" })
 
@@ -280,10 +313,33 @@ export async function paymentRoutes(app: FastifyInstance) {
   app.post("/webhook/xendit", async (request, reply) => {
     // Verify webhook token
     const token = request.headers["x-callback-token"]
-    if (process.env.XENDIT_WEBHOOK_TOKEN && token !== process.env.XENDIT_WEBHOOK_TOKEN) {
+    if (!process.env.XENDIT_WEBHOOK_TOKEN || token !== process.env.XENDIT_WEBHOOK_TOKEN) {
       return reply.code(401).send({ success: false })
     }
     const body = request.body as any
+
+    // Invoice paid (บัตรเครดิต/เดบิตผ่านหน้า Xendit Invoice)
+    if (body?.external_id && (body.status === "PAID" || body.status === "SETTLED")) {
+      const orderId: string = body.external_id
+      try {
+        const order = await db.query.orders.findFirst({ where: eq(orders.id, orderId) })
+        if (order && order.status === "pending_payment" && Number(body.paid_amount ?? body.amount) >= Number(order.total)) {
+          await db.insert(payments).values({
+            orderId,
+            method: "credit_card",
+            amount: order.total,
+            status: "verified",
+            reference: body.id,
+            verifiedAt: new Date(),
+          }).onConflictDoNothing()
+          await db.update(orders).set({ status: "paid", updatedAt: new Date() }).where(eq(orders.id, orderId))
+        }
+      } catch (e) {
+        app.log.error(e, "Xendit invoice webhook processing error")
+      }
+      return { success: true }
+    }
+
     // QR payment completed
     if (body.event === "qr.payment" && body.data?.status === "COMPLETED") {
       const orderId: string = body.data.reference_id
