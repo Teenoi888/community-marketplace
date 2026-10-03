@@ -10,8 +10,6 @@ export const COMPANY = {
   addressTh: "35 อาคารวรรณสรณ์ ชั้น 12A ถนนพญาไท แขวงถนนพญาไท เขตราชเทวี กรุงเทพมหานคร 10400",
   addressShortTh: "35 อาคารวรรณสรณ์ ถ.พญาไท เขตราชเทวี กรุงเทพฯ 10400",
   addressEn: "35 Wannasorn Bldg. 12A Fl., Phaya Thai Rd., Thanon Phaya Thai, Ratchathewi, Bangkok 10400",
-  phone: "083-795-1555",
-  phoneHref: "tel:0837951555",
   email: "contact@relearnsolution.co.th",
   supportEmail: "contact@relearnsolution.co.th",
   privacyEmail: "privacy@chumchon.market",
