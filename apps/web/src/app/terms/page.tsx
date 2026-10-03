@@ -120,8 +120,7 @@ export default function TermsPage() {
 
       <LegalSection title="12. ติดต่อเรา">
         <p>
-          {COMPANY.nameTh} · {COMPANY.addressTh} · โทร{" "}
-          <a href={COMPANY.phoneHref} className="text-primary-600 underline">{COMPANY.phone}</a> · อีเมล{" "}
+          {COMPANY.nameTh} · {COMPANY.addressTh} · อีเมล{" "}
           <a href={`mailto:${COMPANY.supportEmail}`} className="text-primary-600 underline">{COMPANY.supportEmail}</a>
         </p>
       </LegalSection>

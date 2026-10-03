@@ -20,7 +20,6 @@ export default function AboutPage() {
           <p>{COMPANY.nameEn}</p>
           <p>เลขทะเบียนนิติบุคคล / เลขประจำตัวผู้เสียภาษี: {COMPANY.registrationNo}</p>
           <p>ที่อยู่: {COMPANY.addressTh}</p>
-          <p>โทร: <a href={COMPANY.phoneHref} className="text-primary-600 underline">{COMPANY.phone}</a></p>
           <p>อีเมล: <a href={`mailto:${COMPANY.supportEmail}`} className="text-primary-600 underline">{COMPANY.supportEmail}</a></p>
           <p>เว็บไซต์บริษัท: <a href={COMPANY.website} className="text-primary-600 underline" target="_blank" rel="noreferrer">{COMPANY.website}</a></p>
         </div>

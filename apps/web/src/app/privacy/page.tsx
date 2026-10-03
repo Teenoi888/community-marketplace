@@ -122,7 +122,7 @@ export default function PrivacyPolicyPage() {
               <a href="mailto:privacy@chumchon.market" className="text-primary-600 underline">
                 privacy@chumchon.market
               </a>{" "}
-              หรือ {COMPANY.nameTh} {COMPANY.addressTh} โทร {COMPANY.phone}
+              หรือ {COMPANY.nameTh} {COMPANY.addressTh}
             </p>
           </section>
         </div>

@@ -63,7 +63,7 @@ export default function ShippingPolicyPage() {
       </LegalSection>
 
       <LegalSection title="7. ติดต่อสอบถาม">
-        <p>อีเมล {COMPANY.supportEmail} · โทร {COMPANY.phone} ({COMPANY.hours})</p>
+        <p>อีเมล {COMPANY.supportEmail} ({COMPANY.hours})</p>
       </LegalSection>
     </LegalPage>
   )

@@ -52,7 +52,7 @@ export default function RefundPolicyPage() {
 
       <LegalSection title="4. ขั้นตอนการขอคืนสินค้า/คืนเงิน">
         <ol className="list-decimal pl-5 space-y-1.5">
-          <li>แจ้งร้านค้าผ่านเมนูแชทในแพลตฟอร์ม หรือแจ้งทีมงานทางอีเมล {COMPANY.supportEmail} / โทร {COMPANY.phone} พร้อมเลขที่คำสั่งซื้อ</li>
+          <li>แจ้งร้านค้าผ่านเมนูแชทในแพลตฟอร์ม หรือแจ้งทีมงานทางอีเมล {COMPANY.supportEmail} พร้อมเลขที่คำสั่งซื้อ</li>
           <li>แนบหลักฐาน เช่น รูปถ่ายหรือวิดีโอขณะแกะพัสดุ รูปสินค้าที่มีปัญหา และรูปใบปะหน้าพัสดุ</li>
           <li>ร้านค้าและทีมงานพิจารณาคำขอภายใน 3 วันทำการ และแจ้งผลผ่านแชทหรืออีเมล</li>
           <li>หากต้องส่งสินค้าคืน ทีมงานจะแจ้งที่อยู่สำหรับส่งคืน ค่าส่งคืนกรณีความผิดพลาดของร้านค้าหรือขนส่ง ร้านค้าเป็นผู้รับผิดชอบ</li>
@@ -74,8 +74,7 @@ export default function RefundPolicyPage() {
       <LegalSection title="6. ข้อพิพาทและการติดต่อ">
         <p>
           หากผู้ซื้อและร้านค้าไม่สามารถตกลงกันได้ บริษัทจะเป็นผู้พิจารณาตัดสินจากหลักฐานของทั้งสองฝ่าย ติดต่อทีมงานได้ที่อีเมล{" "}
-          <a href={`mailto:${COMPANY.supportEmail}`} className="text-primary-600 underline">{COMPANY.supportEmail}</a> หรือโทร{" "}
-          <a href={COMPANY.phoneHref} className="text-primary-600 underline">{COMPANY.phone}</a> ({COMPANY.hours})
+          <a href={`mailto:${COMPANY.supportEmail}`} className="text-primary-600 underline">{COMPANY.supportEmail}</a> ({COMPANY.hours})
         </p>
         <p className="text-sm">
           ดูเพิ่มเติม: <Link href="/shipping-policy" className="text-primary-600 underline">นโยบายการจัดส่งสินค้า</Link> ·{" "}
