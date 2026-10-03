@@ -17,11 +17,6 @@ export function SiteFooter() {
         <div className="space-y-2">
           <p className="text-base font-bold text-gray-900">{COMPANY.platformName}</p>
           <p>ตลาดออนไลน์สำหรับสินค้าชุมชนไทย เชื่อมผู้ผลิตในท้องถิ่นกับผู้ซื้อทั่วประเทศ</p>
-          <p className="text-gray-500">
-            ให้บริการโดย <span className="font-medium text-gray-700">{COMPANY.nameTh}</span>
-            <br />
-            ({COMPANY.nameEn})
-          </p>
         </div>
 
         <div>
@@ -37,23 +32,15 @@ export function SiteFooter() {
           </ul>
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <p className="font-semibold text-gray-900 mb-3">ติดต่อเรา</p>
-          <p>{COMPANY.addressTh}</p>
-          <p>เลขประจำตัวผู้เสียภาษี: {COMPANY.registrationNo}</p>
+          <p className="font-medium text-gray-700">{COMPANY.nameTh}</p>
           <p>
-            โทร:{" "}
-            <a href={COMPANY.phoneHref} className="hover:text-primary-600 hover:underline">
-              {COMPANY.phone}
-            </a>
-          </p>
-          <p>
-            อีเมล:{" "}
             <a href={`mailto:${COMPANY.supportEmail}`} className="hover:text-primary-600 hover:underline">
               {COMPANY.supportEmail}
             </a>
           </p>
-          <p className="text-gray-500">เวลาทำการ: {COMPANY.hours}</p>
+          <p>{COMPANY.addressShortTh}</p>
         </div>
       </div>
       <div className="border-t border-gray-100 py-4 text-center text-xs text-gray-400">
