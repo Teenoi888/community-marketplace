@@ -3,7 +3,6 @@ import Link from "next/link"
 import { MapPin, Package, Users, ChevronLeft, Star } from "lucide-react"
 import { ProductCard } from "@/components/marketplace/ProductCard"
 import { JoinCommunityActions } from "@/components/community/JoinCommunityActions"
-import { ChatWithSellerButton } from "@/components/community/ChatWithSellerButton"
 
 interface Props { params: { slug: string } }
 
@@ -108,8 +107,7 @@ export default async function CommunityPage({ params }: Props) {
 
             {/* Chat / Join / Open shop actions */}
             <div className="flex items-center gap-2 flex-shrink-0">
-              {shop && <ChatWithSellerButton sellerId={shop.ownerId} />}
-              <JoinCommunityActions communityId={community.id} communityName={community.name} />
+<JoinCommunityActions communityId={community.id} communityName={community.name} />
             </div>
           </div>
         </div>
