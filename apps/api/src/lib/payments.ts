@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm"
 import { db } from "../db/index.js"
-import { orders, payments, paymentEvents } from "../db/schema.js"
+import { orders, payments, paymentEvents, shops } from "../db/schema.js"
+import { notifyOrderStatus } from "./notify.js"
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -53,7 +54,7 @@ export interface SettleResult {
  * UNEXPECTED (database down, constraint violation …) throws: the whole transaction — including
  * the event row — rolls back, the caller answers 5xx, and the gateway's retry processes it again.
  */
-export async function settleOrderPayment(input: SettleInput): Promise<SettleResult> {
+async function settleInTransaction(input: SettleInput): Promise<SettleResult> {
   return db.transaction(async (tx) => {
     let eventRowId: string | null = null
     if (input.event) {
@@ -132,4 +133,43 @@ export function webhookReply(result: SettleResult) {
   return result.outcome === "settled" || result.outcome === "duplicate"
     ? { success: true, outcome: result.outcome }
     : { success: false, outcome: result.outcome, error: result.reason ?? result.outcome }
+}
+
+/** settleInTransaction + the "payment received" notifications, sent only after the transaction has committed. */
+export async function settleOrderPayment(input: SettleInput): Promise<SettleResult> {
+  const result = await settleInTransaction(input)
+  if (result.outcome === "settled" && result.payment) {
+    await notifyPaymentConfirmed(result.payment.orderId, Number(result.payment.paidAmount ?? result.payment.amount)).catch((e) =>
+      console.warn("payment confirmation notify failed (non-critical):", e),
+    )
+  }
+  return result
+}
+
+const NOTIFY_TIMEOUT_MS = 5000
+
+/**
+ * Tell the buyer their payment arrived and the shop owner that there is a paid order to prepare.
+ * Never throws and never holds the gateway callback for long: a slow email/LINE provider must not
+ * make the gateway retry (a retry is harmless — it's a recorded duplicate — but noisy).
+ */
+export async function notifyPaymentConfirmed(orderId: string, amount: number) {
+  const [row] = await db.select({ buyerId: orders.buyerId, ownerId: shops.ownerId })
+    .from(orders).innerJoin(shops, eq(shops.id, orders.shopId)).where(eq(orders.id, orderId))
+  if (!row) return
+  const code = orderId.slice(0, 8).toUpperCase()
+  const baht = amount.toLocaleString("th-TH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  const send = Promise.allSettled([
+    notifyOrderStatus({
+      userId: row.buyerId, orderId,
+      title: `ชำระเงินสำเร็จ — ออเดอร์ #${code}`,
+      body: `เราได้รับเงิน ฿${baht} แล้ว ร้านค้ากำลังเตรียมสินค้าให้คุณ`,
+    }),
+    notifyOrderStatus({
+      userId: row.ownerId, orderId,
+      title: `💰 ออเดอร์ #${code} ชำระเงินแล้ว`,
+      body: `ลูกค้าชำระ ฿${baht} แล้ว กรุณาเตรียมสินค้าและจัดส่ง`,
+    }),
+  ])
+  await Promise.race([send, new Promise((r) => setTimeout(r, NOTIFY_TIMEOUT_MS).unref())])
 }

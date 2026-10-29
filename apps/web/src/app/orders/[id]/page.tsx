@@ -27,6 +27,13 @@ function fmt(n: number) {
   return new Intl.NumberFormat("th-TH", { style: "currency", currency: "THB", minimumFractionDigits: 0 }).format(n)
 }
 
+const PAYMENT_METHOD_LABELS: Record<string, string> = {
+  promptpay: "พร้อมเพย์",
+  qr_code: "QR Code",
+  bank_transfer: "โอนเงิน",
+  credit_card: "บัตรเครดิต/เดบิต",
+}
+
 export default function OrderDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
@@ -204,6 +211,22 @@ export default function OrderDetailPage() {
               <p>{order.deliveryAddress.address}</p>
               <p>{order.deliveryAddress.subdistrict ? `${order.deliveryAddress.subdistrict}, ` : ""}{order.deliveryAddress.district}, {order.deliveryAddress.province} {order.deliveryAddress.zipCode}</p>
             </div>
+          </div>
+        )}
+
+        {/* Receipt */}
+        {order.payment && (
+          <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            <h2 className="font-semibold text-gray-800 mb-3">การชำระเงิน / ใบเสร็จ</h2>
+            <dl className="text-sm text-gray-600 space-y-1.5">
+              <div className="flex justify-between gap-4"><dt>สถานะ</dt><dd className="font-medium text-green-600">ชำระแล้ว</dd></div>
+              <div className="flex justify-between gap-4"><dt>ยอดที่ชำระ</dt><dd className="font-medium text-gray-900">฿{Number(order.payment.amount).toLocaleString("th-TH", { minimumFractionDigits: 2 })}</dd></div>
+              <div className="flex justify-between gap-4"><dt>วิธีชำระ</dt><dd>{PAYMENT_METHOD_LABELS[order.payment.method] || order.payment.method}</dd></div>
+              <div className="flex justify-between gap-4"><dt>เวลาที่ชำระ</dt><dd>{new Date(order.payment.paidAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })}</dd></div>
+              {order.payment.reference && (
+                <div className="flex justify-between gap-4"><dt>หมายเลขอ้างอิง</dt><dd className="font-mono text-xs break-all text-right">{order.payment.reference}</dd></div>
+              )}
+            </dl>
           </div>
         )}
 

@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify"
 import { z } from "zod"
 import { db } from "../../db/index.js"
-import { orders, orderItems, products, shops, users, coupons, couponRedemptions } from "../../db/schema.js"
+import { orders, orderItems, payments, products, shops, users, coupons, couponRedemptions } from "../../db/schema.js"
 import { and, eq, gte, sql } from "drizzle-orm"
 import { requireAuth } from "../../middleware/auth.js"
 import { notifyOrderStatus } from "../../lib/notify.js"
@@ -212,7 +212,20 @@ export async function orderRoutes(app: FastifyInstance) {
     const { userId } = request.user as { userId: string }
     const { role } = await getOrderRole(userId, id)
     if (!role) return reply.code(404).send({ success: false, error: "ไม่พบออเดอร์" })
-    return { success: true, data: order }
+
+    // Receipt for a paid order: only the fields a buyer/seller needs (never the raw gateway payload).
+    const [paid] = await db.select().from(payments)
+      .where(and(eq(payments.orderId, id), eq(payments.status, "verified")))
+    const payment = paid ? {
+      id: paid.id,
+      method: paid.method,
+      provider: paid.provider,
+      reference: paid.providerRef ?? paid.reference,
+      amount: paid.paidAmount ?? paid.amount,
+      currency: paid.currency,
+      paidAt: paid.verifiedAt ?? paid.createdAt,
+    } : null
+    return { success: true, data: { ...order, payment } }
   })
 
   // Dashboard stats for my shop (seller)
