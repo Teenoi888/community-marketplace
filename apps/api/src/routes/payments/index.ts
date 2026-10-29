@@ -13,6 +13,26 @@ const createPaymentSchema = z.object({
   slipUrl: z.string().url().optional(),
 })
 
+// ─── Authorization ───────────────────────────────────────────────────────────
+// Only the buyer of an order may create or read payments for it.
+// Returns null (→ 404, not 403) for other people's orders so order IDs can't be probed.
+async function getBuyerOrder(userId: string, orderId: string) {
+  const order = await db.query.orders.findFirst({ where: eq(orders.id, orderId) })
+  if (!order || order.buyerId !== userId) return null
+  return order
+}
+
+const orderNotFound = { success: false, error: "ไม่พบออเดอร์" }
+const orderNotPayable = { success: false, error: "ออเดอร์นี้ไม่ได้อยู่ในสถานะรอชำระเงิน" }
+
+// Slip / manual-PromptPay payments are CLOSED by default: the slip check only compared the
+// amount, so one real slip could settle many orders. When enabled (SLIP_PAYMENT_ENABLED=true)
+// a slip only records a `verifying` payment — it never marks the order paid by itself.
+const slipPaymentEnabled = () => process.env.SLIP_PAYMENT_ENABLED === "true"
+
+// Omise API base (override only for local testing with a mock server)
+const OMISE_API_BASE = process.env.OMISE_API_BASE || "https://api.omise.co"
+
 // ─── Detect which card gateway is configured ─────────────────────────────────
 function detectCardGateway(): "omise" | "xendit" | "gbprimepay" | "2c2p" | null {
   if (process.env.OMISE_SECRET_KEY)       return "omise"
@@ -33,40 +53,56 @@ function xenditAuth() {
 
 export async function paymentRoutes(app: FastifyInstance) {
 
-  // ── Create payment / slip upload ──────────────────────────────────────────
+  // ── Slip upload (manual transfer) ─────────────────────────────────────────
+  // Closed by default (SLIP_PAYMENT_ENABLED). Even when enabled, a slip is only recorded as
+  // `verifying` — a person must confirm it; it is never auto-marked paid (see slipPaymentEnabled).
   app.post("/", { preHandler: [requireAuth] }, async (request, reply) => {
-    const body = createPaymentSchema.parse(request.body)
-    const order = await db.query.orders.findFirst({ where: eq(orders.id, body.orderId) })
-    if (!order) return reply.code(404).send({ success: false, error: "ไม่พบออเดอร์" })
+    const { userId } = request.user as { userId: string }
+    const parsed = createPaymentSchema.safeParse(request.body)
+    if (!parsed.success) return reply.code(400).send({ success: false, error: "ข้อมูลไม่ถูกต้อง" })
+    const body = parsed.data
+
+    const order = await getBuyerOrder(userId, body.orderId)
+    if (!order) return reply.code(404).send(orderNotFound)
+    if (order.status !== "pending_payment") return reply.code(409).send(orderNotPayable)
+
+    if (body.method !== "bank_transfer" || !body.slipUrl) {
+      // Other methods are created through /promptpay-qr and /card-session and are confirmed
+      // only by verified gateway webhooks — never by a client-created payment row.
+      return reply.code(400).send({ success: false, error: "ช่องทางนี้ต้องชำระผ่านหน้าชำระเงินของระบบ" })
+    }
+    if (!slipPaymentEnabled()) {
+      return reply.code(403).send({
+        success: false,
+        error: "slip_payment_disabled",
+        message: "ไม่รับชำระเงินด้วยการอัปโหลดสลิปในขณะนี้ กรุณาเลือกช่องทางอื่น",
+      })
+    }
 
     const [payment] = await db.insert(payments).values({
-      orderId: body.orderId,
-      method: body.method,
+      orderId: order.id,
+      method: "bank_transfer",
       amount: order.total,
-      status: "pending",
+      status: "verifying",
       slipUrl: body.slipUrl,
     }).returning()
 
-    // Auto-verify slip on bank transfer
-    if (body.method === "bank_transfer" && body.slipUrl) {
-      try {
-        const verified = await verifySlip(body.slipUrl, Number(order.total))
-        if (verified) {
-          await db.update(payments).set({ status: "verified", verifiedAt: new Date() }).where(eq(payments.id, payment.id))
-          await db.update(orders).set({ status: "paid", updatedAt: new Date() }).where(eq(orders.id, body.orderId))
-          return { success: true, data: { ...payment, status: "verified" }, verified: true }
-        }
-      } catch (e) {
-        app.log.warn({ err: e }, "Slip verification failed")
-      }
-    }
-
-    return reply.code(201).send({ success: true, data: payment })
+    return reply.code(201).send({ success: true, data: payment, message: "ได้รับสลิปแล้ว รอทีมงานตรวจสอบ" })
   })
 
   // ── PromptPay QR (Xendit) ────────────────────────────────────────────────
-  app.post("/promptpay-qr", { preHandler: [requireAuth] }, async (request) => {
-    const { amount, orderId } = request.body as { amount: number; orderId: string }
+  app.post("/promptpay-qr", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { userId } = request.user as { userId: string }
+    // `amount` from the client (if any) is deliberately ignored — the amount to pay is always
+    // the order total stored in the database, otherwise a buyer could request a 1-baht QR.
+    const parsed = z.object({ orderId: z.string().uuid() }).safeParse(request.body)
+    if (!parsed.success) return reply.code(400).send({ success: false, error: "ข้อมูลไม่ถูกต้อง" })
+    const { orderId } = parsed.data
+
+    const order = await getBuyerOrder(userId, orderId)
+    if (!order) return reply.code(404).send(orderNotFound)
+    if (order.status !== "pending_payment") return reply.code(409).send(orderNotPayable)
+    const amount = Number(order.total)
 
     if (process.env.XENDIT_SECRET_KEY) {
       try {
@@ -96,33 +132,49 @@ export async function paymentRoutes(app: FastifyInstance) {
       }
     }
 
-    // Fallback: show static PromptPay ID (manual transfer flow)
-    return {
-      success: true,
-      data: {
-        promptpayId: process.env.PROMPTPAY_ID || "0812345678",
-        amount,
-        orderId,
-      },
+    // Legacy manual flow (static PromptPay ID + slip): only when explicitly enabled AND a real
+    // PROMPTPAY_ID is configured. There is no placeholder default any more — customers must
+    // never be shown a sample number — so this fails closed.
+    if (slipPaymentEnabled() && process.env.PROMPTPAY_ID) {
+      return { success: true, data: { promptpayId: process.env.PROMPTPAY_ID, amount, orderId } }
     }
+
+    return reply.code(503).send({
+      success: false,
+      error: "promptpay_unavailable",
+      message: "ช่องทาง PromptPay ยังไม่พร้อมให้บริการ กรุณาลองใหม่ภายหลังหรือติดต่อทีมงาน",
+    })
   })
 
   // ── Card Payment Session ─────────────────────────────────────────────────
-  // เตรียม endpoint ไว้รองรับ Omise / GB Prime Pay / 2C2P
-  // เมื่อได้ key จาก gateway แล้วให้ใส่ใน Railway env vars แล้วระบบจะเชื่อมทันที
+  // รองรับ Omise และ Xendit (hosted invoice) — ใส่ key ใน Railway env vars แล้วระบบจะเชื่อมทันที
+  // (GB Prime Pay / 2C2P ถูกปิดไว้จนกว่าจะมีการตรวจลายเซ็น callback)
   app.post("/card-session", { preHandler: [requireAuth] }, async (request, reply) => {
     const schema = z.object({
       orderId: z.string().uuid(),
       // Omise: ส่ง token จาก Omise.js (frontend tokenization)
       omiseToken: z.string().optional(),
-      // 2C2P / GB Prime Pay: ส่ง encrypted card data
-      encryptedCard: z.string().optional(),
     })
-    const body = schema.parse(request.body)
-    const order = await db.query.orders.findFirst({ where: eq(orders.id, body.orderId) })
-    if (!order) return reply.code(404).send({ success: false, error: "ไม่พบออเดอร์" })
+    const { userId } = request.user as { userId: string }
+    const parsed = schema.safeParse(request.body)
+    if (!parsed.success) return reply.code(400).send({ success: false, error: "ข้อมูลไม่ถูกต้อง" })
+    const body = parsed.data
+    const order = await getBuyerOrder(userId, body.orderId)
+    if (!order) return reply.code(404).send(orderNotFound)
+    if (order.status !== "pending_payment") return reply.code(409).send(orderNotPayable)
 
     const gateway = detectCardGateway()
+
+    // GB Prime Pay and 2C2P confirm payment through a server callback that this API does not
+    // yet authenticate (their handlers were removed: they let anyone mark an order paid).
+    // Refuse to start a payment on them until signature verification is implemented.
+    if (gateway === "gbprimepay" || gateway === "2c2p") {
+      return reply.code(503).send({
+        success: false,
+        error: "payment_gateway_not_enabled",
+        message: "ช่องทางชำระด้วยบัตรนี้ยังไม่เปิดให้บริการ",
+      })
+    }
 
     // ── Omise ──────────────────────────────────────────────────────────────
     if (gateway === "omise" && body.omiseToken) {
@@ -161,27 +213,6 @@ export async function paymentRoutes(app: FastifyInstance) {
       }
     }
 
-    // ── GB Prime Pay (Credit Card) ──────────────────────────────────────────
-    if (gateway === "gbprimepay" && body.encryptedCard) {
-      try {
-        const res = await axios.post(
-          "https://api.gbprimepay.com/gbp/gateway/card",
-          {
-            token: process.env.GBPAY_SECRET_KEY,
-            amount: Number(order.total).toFixed(2),
-            referenceNo: order.id,
-            gbpReferenceNo: body.encryptedCard,
-            backgroundUrl: `${process.env.API_URL}/api/payments/webhook/gbpay`,
-            responseUrl: `${process.env.NEXT_PUBLIC_APP_URL}/checkout/${order.id}/card-result`,
-          }
-        )
-        return { success: true, data: { gateway: "gbprimepay", ...res.data } }
-      } catch (err: any) {
-        app.log.error(err?.response?.data || err)
-        return reply.code(500).send({ success: false, error: "GB Prime Pay charge failed" })
-      }
-    }
-
     // ── Xendit (Hosted Invoice page — card data never touches our server) ──
     if (gateway === "xendit") {
       try {
@@ -207,56 +238,23 @@ export async function paymentRoutes(app: FastifyInstance) {
       }
     }
 
-    // ── 2C2P (Payment Link / Hosted Page) ──────────────────────────────────
-    if (gateway === "2c2p") {
-      // 2C2P ใช้ Payment Token API แล้ว redirect ไปหน้า hosted payment
-      try {
-        const res = await axios.post(
-          "https://pgw.2c2p.com/payment/4.1/PaymentToken",
-          {
-            merchantID: process.env.TWOC2P_MERCHANT_ID,
-            invoiceNo: order.id.replace(/-/g, "").slice(0, 20),
-            description: `Order #${order.id.slice(0, 8)}`,
-            amount: Number(order.total).toFixed(2),
-            currencyCode: "764", // THB
-            paymentChannel: ["CC"],
-            request3DS: "Y",
-            backendReturnUrl: `${process.env.API_URL}/api/payments/webhook/2c2p`,
-            frontendReturnUrl: `${process.env.NEXT_PUBLIC_APP_URL}/checkout/${order.id}/card-result`,
-          },
-          { headers: { "content-type": "application/json", "secret-key": process.env.TWOC2P_SECRET_KEY! } }
-        )
-        const paymentToken = res.data.paymentToken
-        return {
-          success: true,
-          data: {
-            gateway: "2c2p",
-            redirectUrl: `https://pgw.2c2p.com/payment/4.1/payment?paymentToken=${paymentToken}`,
-          }
-        }
-      } catch (err: any) {
-        app.log.error(err?.response?.data || err)
-        return reply.code(500).send({ success: false, error: "2C2P payment failed" })
-      }
-    }
-
     // ── No gateway configured ───────────────────────────────────────────────
     return reply.code(503).send({
       success: false,
       error: "payment_gateway_not_configured",
-      message: "ยังไม่ได้เชื่อมต่อ Payment Gateway — กรุณาตั้งค่า OMISE_SECRET_KEY, GBPAY_SECRET_KEY หรือ TWOC2P_SECRET_KEY ใน environment variables",
-      supportedGateways: ["omise", "gbprimepay", "2c2p"],
+      message: "ยังไม่ได้เชื่อมต่อ Payment Gateway สำหรับบัตร — กรุณาตั้งค่า OMISE_SECRET_KEY หรือ XENDIT_SECRET_KEY + XENDIT_CARD_ENABLED=true ใน environment variables",
+      supportedGateways: ["omise", "xendit"],
     })
   })
 
   // ── Card payment result (after 3DS redirect) ────────────────────────────
   app.get("/card-result/:orderId", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { userId } = request.user as { userId: string }
     const { orderId } = request.params as { orderId: string }
-    const query = request.query as { status?: string; chargeId?: string }
 
     // Check order status from DB (webhook should have updated it already)
-    const order = await db.query.orders.findFirst({ where: eq(orders.id, orderId) })
-    if (!order) return reply.code(404).send({ success: false, error: "ไม่พบออเดอร์" })
+    const order = await getBuyerOrder(userId, orderId)
+    if (!order) return reply.code(404).send(orderNotFound)
 
     return { success: true, data: { orderId, orderStatus: order.status, verified: order.status === "paid" } }
   })
@@ -270,6 +268,7 @@ export async function paymentRoutes(app: FastifyInstance) {
         cardGateway: gateway,
         configured: gateway !== null,
         demoEnabled: process.env.PAYMENT_DEMO_ENABLED === "true",
+        slipEnabled: slipPaymentEnabled(),
         publicKeys: {
           omise: process.env.OMISE_PUBLIC_KEY ?? null,
           xendit: process.env.XENDIT_PUBLIC_KEY ?? null,
@@ -347,6 +346,23 @@ export async function paymentRoutes(app: FastifyInstance) {
       try {
         const order = await db.query.orders.findFirst({ where: eq(orders.id, orderId) })
         if (order && order.status === "pending_payment") {
+          // The QR is created server-side for exactly order.total, but never trust the callback
+          // alone: when it reports an amount/currency it must match the order before we mark it paid.
+          const reportedAmount = body.data.amount
+          const reportedCurrency = body.data.currency
+          const amountMismatch =
+            reportedAmount !== undefined && reportedAmount !== null &&
+            Math.abs(Number(reportedAmount) - Number(order.total)) > 0.009
+          const currencyMismatch =
+            reportedCurrency !== undefined && reportedCurrency !== null &&
+            String(reportedCurrency).toUpperCase() !== "THB"
+          if (amountMismatch || currencyMismatch) {
+            app.log.warn(
+              { orderId, reportedAmount, reportedCurrency, expected: order.total },
+              "Xendit QR webhook amount/currency mismatch — order NOT marked paid",
+            )
+            return { success: false, error: "amount_mismatch" }
+          }
           await db.insert(payments).values({
             orderId,
             method: "promptpay",
@@ -364,66 +380,60 @@ export async function paymentRoutes(app: FastifyInstance) {
     return { success: true }
   })
 
-  // ── Webhook: GB Prime Pay ─────────────────────────────────────────────────
-  app.post("/webhook/gbpay", async (request) => {
-    const { referenceNo, resultCode } = request.body as any
-    if (resultCode === "00") {
-      const payment = await db.query.payments.findFirst({ where: eq(payments.orderId, referenceNo) })
-      if (payment) {
-        await db.update(payments).set({ status: "verified", verifiedAt: new Date() }).where(eq(payments.id, payment.id))
-        await db.update(orders).set({ status: "paid", updatedAt: new Date() }).where(eq(orders.id, referenceNo))
-      }
-    }
-    return { success: true }
-  })
-
   // ── Webhook: Omise ────────────────────────────────────────────────────────
-  app.post("/webhook/omise", async (request) => {
+  // Omise callbacks are not signed, so the body is never trusted: we take only the charge id from
+  // it and re-fetch the charge from Omise with our secret key, then check status / currency /
+  // amount / order before marking anything paid.
+  app.post("/webhook/omise", async (request, reply) => {
     const event = request.body as any
-    if (event.key === "charge.complete" && event.data?.status === "successful") {
-      const orderId = event.data?.metadata?.orderId
-      if (orderId) {
-        const payment = await db.query.payments.findFirst({ where: eq(payments.orderId, orderId) })
-        if (payment) {
-          await db.update(payments).set({ status: "verified", verifiedAt: new Date(), reference: event.data.id }).where(eq(payments.id, payment.id))
-          await db.update(orders).set({ status: "paid", updatedAt: new Date() }).where(eq(orders.id, orderId))
-        }
-      }
+    if (event?.key !== "charge.complete") return { success: true } // other events: nothing to do
+
+    if (!process.env.OMISE_SECRET_KEY) return reply.code(503).send({ success: false })
+    const chargeId = event?.data?.id
+    if (typeof chargeId !== "string" || !/^chrg_[A-Za-z0-9_]+$/.test(chargeId)) {
+      return reply.code(400).send({ success: false })
     }
+
+    let charge: any
+    try {
+      const res = await axios.get(`${OMISE_API_BASE}/charges/${chargeId}`, {
+        auth: { username: process.env.OMISE_SECRET_KEY, password: "" },
+      })
+      charge = res.data
+    } catch (e: any) {
+      app.log.error({ err: e?.response?.data || e?.message }, "Omise charge lookup failed")
+      return reply.code(502).send({ success: false }) // non-2xx so Omise retries
+    }
+
+    const orderId = charge?.metadata?.orderId
+    const order = typeof orderId === "string"
+      ? await db.query.orders.findFirst({ where: eq(orders.id, orderId) })
+      : undefined
+    if (!order) return { success: false, error: "order_not_found" }
+    if (order.status !== "pending_payment") return { success: true } // already processed
+
+    const valid =
+      charge.status === "successful" &&
+      String(charge.currency).toLowerCase() === "thb" &&
+      charge.amount === Math.round(Number(order.total) * 100)
+    if (!valid) {
+      app.log.warn({ orderId: order.id, chargeId, status: charge.status }, "Omise charge does not match order — NOT marked paid")
+      return { success: false, error: "charge_mismatch" }
+    }
+
+    await db.insert(payments).values({
+      orderId: order.id,
+      method: "credit_card",
+      amount: order.total,
+      status: "verified",
+      reference: charge.id,
+      verifiedAt: new Date(),
+    }).onConflictDoNothing()
+    await db.update(orders).set({ status: "paid", updatedAt: new Date() }).where(eq(orders.id, order.id))
     return { success: true }
   })
 
-  // ── Webhook: 2C2P ────────────────────────────────────────────────────────
-  app.post("/webhook/2c2p", async (request) => {
-    const body = request.body as any
-    // 2C2P sends respCode "0000" for success
-    if (body.respCode === "0000") {
-      const orderId = body.invoiceNo  // we set invoiceNo = orderId (truncated)
-      // Find order by matching first 20 chars of id (without dashes)
-      const allOrders = await db.select().from(orders)
-      const order = allOrders.find(o => o.id.replace(/-/g, "").slice(0, 20) === orderId)
-      if (order) {
-        const payment = await db.query.payments.findFirst({ where: eq(payments.orderId, order.id) })
-        if (payment) {
-          await db.update(payments).set({ status: "verified", verifiedAt: new Date(), reference: body.tranRef }).where(eq(payments.id, payment.id))
-          await db.update(orders).set({ status: "paid", updatedAt: new Date() }).where(eq(orders.id, order.id))
-        }
-      }
-    }
-    // 2C2P expects specific redirect back
-    return { success: true }
-  })
-}
-
-async function verifySlip(slipUrl: string, expectedAmount: number): Promise<boolean> {
-  try {
-    const { data } = await axios.post(
-      "https://developer.easyslip.com/api/v1/verify",
-      { url: slipUrl },
-      { headers: { Authorization: `Bearer ${process.env.EASYSLIP_API_KEY}` } }
-    )
-    return data.data?.amount?.amount === expectedAmount
-  } catch {
-    return false
-  }
+  // NOTE: the GB Prime Pay (/webhook/gbpay) and 2C2P (/webhook/2c2p) handlers were removed on
+  // purpose. They marked an order paid from an unauthenticated request body. Re-introduce them
+  // only together with the provider's signature verification and an amount check.
 }

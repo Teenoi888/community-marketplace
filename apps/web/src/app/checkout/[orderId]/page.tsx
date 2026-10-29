@@ -15,6 +15,7 @@ interface GatewayInfo {
   configured: boolean
   cardGateway: string | null
   demoEnabled?: boolean
+  slipEnabled?: boolean
   publicKeys: { omise: string | null; gbprimepay: string | null; xendit?: string | null }
 }
 
@@ -36,6 +37,7 @@ export default function PaymentPage({ params }: { params: { orderId: string } })
   const [order, setOrder] = useState<OrderData | null>(null)
   const [method, setMethod] = useState<PaymentMethod>("promptpay")
   const [qrData, setQrData] = useState<{ qrImage?: string; promptpayId?: string } | null>(null)
+  const [qrFailed, setQrFailed] = useState(false)
   const [slipFile, setSlipFile] = useState<File | null>(null)
   const [slipPreview, setSlipPreview] = useState<string | null>(null)
   const [payStatus, setPayStatus] = useState<PaymentStatus>("pending")
@@ -78,10 +80,12 @@ export default function PaymentPage({ params }: { params: { orderId: string } })
   async function generateQR() {
     if (!order) return
     setLoading(true)
+    setQrFailed(false)
     try {
-      const r = await api.post("/payments/promptpay-qr", { amount: Number(order.total), orderId: order.id })
+      const r = await api.post("/payments/promptpay-qr", { orderId: order.id })
       setQrData(r.data.data)
     } catch {
+      setQrFailed(true)
       toast.error("ไม่สามารถสร้าง QR ได้")
     } finally {
       setLoading(false)
@@ -176,6 +180,9 @@ export default function PaymentPage({ params }: { params: { orderId: string } })
   }
 
   const isXendit = gatewayInfo?.cardGateway === "xendit"
+  // โอนธนาคาร/สลิป ปิดไว้เป็นค่าเริ่มต้น (เปิดได้ด้วย SLIP_PAYMENT_ENABLED ฝั่งเซิร์ฟเวอร์)
+  const slipOpen = !!gatewayInfo?.slipEnabled
+  const tabCount = 1 + (gatewayInfo?.configured ? 1 : 0) + (slipOpen && !isXendit ? 1 : 0)
 
   if (payStatus === "verified") {
     return (
@@ -222,14 +229,17 @@ export default function PaymentPage({ params }: { params: { orderId: string } })
         )}
 
         {/* Method tabs */}
-        <div className={`grid ${gatewayInfo?.configured && !isXendit ? "grid-cols-3" : "grid-cols-2"} gap-2 mb-6`}>
+        {tabCount > 1 && (
+        <div className={`grid ${tabCount >= 3 ? "grid-cols-3" : "grid-cols-2"} gap-2 mb-6`}>
           {([
             { id: "promptpay",    label: "📱 PromptPay / QR" },
             { id: "bank_transfer",label: "🏦 โอนธนาคาร" },
             { id: "credit_card",  label: "💳 บัตรเครดิต/เดบิต" },
           ] as const).filter(({ id }) =>
-            // บัตร: แสดงเฉพาะเมื่อเปิด card gateway แล้ว / โอนธนาคาร: ซ่อนเมื่อใช้ Xendit บัตรได้แล้ว
-            id === "credit_card" ? !!gatewayInfo?.configured : !(isXendit && id === "bank_transfer")
+            // บัตร: แสดงเฉพาะเมื่อเปิด card gateway แล้ว / โอนธนาคาร: แสดงเฉพาะเมื่อเปิดช่องทางสลิป และไม่ได้ใช้ Xendit
+            id === "credit_card" ? !!gatewayInfo?.configured
+              : id === "bank_transfer" ? slipOpen && !isXendit
+              : true
           ).map(({ id, label }) => (
             <button
               key={id}
@@ -244,6 +254,7 @@ export default function PaymentPage({ params }: { params: { orderId: string } })
             </button>
           ))}
         </div>
+        )}
 
         {/* ── PromptPay QR ─────────────────────────────────────────── */}
         {method === "promptpay" && (
@@ -268,19 +279,25 @@ export default function PaymentPage({ params }: { params: { orderId: string } })
                   กำลังรอการชำระเงิน...
                 </div>
               </>
-            ) : qrData?.promptpayId ? (
+            ) : qrData?.promptpayId && slipOpen ? (
               <div className="py-8">
                 <p className="font-semibold text-gray-800 mb-2">โอน PromptPay มายัง</p>
                 <p className="text-2xl font-bold text-primary-600">{qrData.promptpayId}</p>
                 <p className="text-3xl font-extrabold mt-4 text-gray-900">{order ? formatPrice(Number(order.total)) : ""}</p>
                 <p className="text-sm text-gray-400 mt-2">จากนั้นอัปโหลดสลิปด้านล่าง</p>
               </div>
+            ) : qrFailed ? (
+              <div className="py-10 text-gray-500">
+                <AlertCircle className="w-8 h-8 mx-auto mb-2 text-gray-400" />
+                <p className="font-medium">ช่องทาง PromptPay ยังไม่พร้อมให้บริการ</p>
+                <p className="text-sm text-gray-400 mt-1">กรุณาลองใหม่ภายหลัง หรือติดต่อทีมงาน</p>
+              </div>
             ) : null}
           </div>
         )}
 
         {/* ── Slip Upload (bank transfer or promptpay manual) ───────── */}
-        {(method === "bank_transfer" || (method === "promptpay" && qrData?.promptpayId)) && (
+        {slipOpen && (method === "bank_transfer" || (method === "promptpay" && qrData?.promptpayId)) && (
           <div className="card mt-4 space-y-4">
             <h3 className="font-semibold text-gray-800">อัปโหลดสลิปการโอนเงิน</h3>
             <label className={`block w-full border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-colors ${
