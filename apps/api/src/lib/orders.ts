@@ -1,6 +1,6 @@
-import { eq, sql } from "drizzle-orm"
+import { and, eq, sql } from "drizzle-orm"
 import { db } from "../db/index.js"
-import { orders, orderItems, products, stockLogs, coupons, couponRedemptions } from "../db/schema.js"
+import { orders, orderItems, payments, refunds, products, stockLogs, coupons, couponRedemptions } from "../db/schema.js"
 
 // How long a buyer has to pay before the order is cancelled and its stock goes back on the shelf.
 // Keep it >= the gateway invoice duration (Xendit invoices live 3600s, see payments route).
@@ -10,7 +10,7 @@ export function newPaymentDeadline(from = new Date()) {
   return new Date(from.getTime() + ORDER_PAYMENT_TTL_MINUTES * 60_000)
 }
 
-export type CancelReason = "buyer_cancelled" | "seller_cancelled" | "admin_cancelled" | "payment_expired"
+export type CancelReason = "buyer_cancelled" | "seller_cancelled" | "admin_cancelled" | "payment_expired" | "refunded"
 
 // Statuses an order may be cancelled from. Once it is shipped the goods are gone: that is a
 // return/refund (P1-06), not a cancel.
@@ -77,6 +77,23 @@ export async function cancelOrder(
         await tx.update(coupons)
           .set({ usedCount: sql`GREATEST(0, ${coupons.usedCount} - 1)` })
           .where(eq(coupons.id, r.couponId))
+      }
+    }
+
+    // A PAID order that gets cancelled (by the seller / an admin) means the customer's money must go back:
+    // queue a refund request automatically so it can't be forgotten. (When the cancel itself is the
+    // result of a completed refund there is nothing more to queue.)
+    if (order.status !== "pending_payment" && reason !== "refunded") {
+      const [paid] = await tx.select().from(payments)
+        .where(and(eq(payments.orderId, order.id), eq(payments.status, "verified")))
+      if (paid) {
+        await tx.insert(refunds).values({
+          orderId: order.id,
+          paymentId: paid.id,
+          amount: paid.amount,
+          reason,
+          requestedBy: opts.actorId ?? null,
+        }).onConflictDoNothing()
       }
     }
 

@@ -13,6 +13,7 @@ import { readdir, readFile } from "fs/promises"
 import { authRoutes } from "./routes/auth/index.js"
 import { communityRoutes } from "./routes/communities/index.js"
 import { productRoutes } from "./routes/products/index.js"
+import { refundRoutes } from "./routes/refunds/index.js"
 import { orderRoutes } from "./routes/orders/index.js"
 import { paymentRoutes } from "./routes/payments/index.js"
 import { chatRoutes } from "./routes/chat/index.js"
@@ -106,6 +107,7 @@ await app.register(communityRoutes, { prefix: "/api/communities" })
 await app.register(productRoutes,   { prefix: "/api/products" })
 await app.register(orderRoutes,     { prefix: "/api/orders" })
 await app.register(paymentRoutes,   { prefix: "/api/payments" })
+await app.register(refundRoutes,    { prefix: "/api/refunds" })
 await app.register(chatRoutes,      { prefix: "/api/chat" })
 await app.register(uploadRoutes,    { prefix: "/api/upload" })
 await app.register(lineRoutes,      { prefix: "/api/line" })

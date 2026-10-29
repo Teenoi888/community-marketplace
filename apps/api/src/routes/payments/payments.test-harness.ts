@@ -57,21 +57,25 @@ export async function createHarness() {
   const S = await import("../../db/schema.js")
   const { paymentRoutes } = await import("./index.js")
   const { orderRoutes } = await import("../orders/index.js")
+  const { refundRoutes } = await import("../refunds/index.js")
 
   const app: FastifyInstance = Fastify()
   await app.register(jwt, { secret: process.env.JWT_SECRET! })
   await app.register(paymentRoutes, { prefix: "/api/payments" })
   await app.register(orderRoutes, { prefix: "/api/orders" })
+  await app.register(refundRoutes, { prefix: "/api/refunds" })
   await app.ready()
 
   const phone = () => `0${Math.floor(1e9 + Math.random() * 8e9)}`
   const tag = uniqueId("pt")
   const [buyer] = await db.insert(S.users).values({ name: "Test Buyer", phone: phone() }).returning()
   const [other] = await db.insert(S.users).values({ name: "Test Other", phone: phone() }).returning()
+  const [admin] = await db.insert(S.users).values({ name: "Test Admin", phone: phone(), role: "admin" }).returning()
   const [community] = await db.insert(S.communities).values({ name: tag, province: "t", district: "t", subdistrict: "t", slug: tag }).returning()
   const [shop] = await db.insert(S.shops).values({ communityId: community.id, ownerId: other.id, name: tag }).returning()
   const buyerToken = app.jwt.sign({ userId: buyer.id })
   const otherToken = app.jwt.sign({ userId: other.id })
+  const adminToken = app.jwt.sign({ userId: admin.id })
 
   const createdOrders: string[] = []
   async function makeOrder(total = "5000.00", status: "pending_payment" | "paid" | "cancelled" = "pending_payment") {
@@ -110,7 +114,10 @@ export async function createHarness() {
   }
 
   return {
-    app, db, S, xendit, omise, omiseCharges, buyerToken, otherToken, buyerId: buyer.id, otherId: other.id, shopId: shop.id,
+    app, db, S, xendit, omise, omiseCharges, buyerToken, otherToken, adminToken, adminId: admin.id, buyerId: buyer.id, otherId: other.id, shopId: shop.id,
+    refundCall: (method: "GET" | "POST", url: string, token?: string, payload?: any) =>
+      app.inject({ method, url: `/api/refunds${url}`, payload, headers: token ? { authorization: `Bearer ${token}` } : {} }),
+    refundRows: async (orderId: string) => db.select().from(S.refunds).where(eq(S.refunds.orderId, orderId)),
     makeOrder, makeProduct, makeCoupon, trackOrder, setEnv,
     productRow: async (id: string) => (await db.select().from(S.products).where(eq(S.products.id, id)))[0],
     couponRow: async (id: string) => (await db.select().from(S.coupons).where(eq(S.coupons.id, id)))[0],
@@ -144,7 +151,8 @@ export async function createHarness() {
       if (createdCoupons.length) await db.delete(S.coupons).where(inArray(S.coupons.id, createdCoupons))
       await db.delete(S.shops).where(eq(S.shops.id, shop.id))
       await db.delete(S.communities).where(eq(S.communities.id, community.id))
-      await db.delete(S.users).where(inArray(S.users.id, [buyer.id, other.id]))
+      await db.delete(S.adminActivityLogs).where(eq(S.adminActivityLogs.adminId, admin.id))
+      await db.delete(S.users).where(inArray(S.users.id, [buyer.id, other.id, admin.id]))
       await app.close()
       await xendit.close()
       await omise.close()
