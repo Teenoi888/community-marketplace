@@ -7,7 +7,7 @@ import http from "node:http"
 import type { AddressInfo } from "node:net"
 import Fastify, { type FastifyInstance } from "fastify"
 import jwt from "@fastify/jwt"
-import { eq, gte, inArray } from "drizzle-orm"
+import { eq, inArray } from "drizzle-orm"
 
 export const HAS_DB = !!process.env.DATABASE_URL
 
@@ -42,7 +42,6 @@ let seq = 0
 export const uniqueId = (prefix: string) => `${prefix}${Date.now().toString(36)}${(seq++).toString(36)}${Math.random().toString(36).slice(2, 8)}`
 
 export async function createHarness() {
-  const startedAt = new Date()
   const omiseCharges: Record<string, any> = {}
   const xendit = await startMock(() => ({ status: 200, json: { id: "qr_mock", qr_string: "00020101021226mock" } }))
   const omise = await startMock((r) => {
@@ -135,8 +134,9 @@ export async function createHarness() {
       for (const k of Object.keys(savedEnv)) delete savedEnv[k]
     },
     async teardown() {
-      await db.delete(S.paymentEvents).where(gte(S.paymentEvents.receivedAt, startedAt))
+      // Test files run in parallel against one database, so only delete OUR rows (never by time window).
       if (createdOrders.length) {
+        await db.delete(S.paymentEvents).where(inArray(S.paymentEvents.orderId, createdOrders))
         await db.delete(S.payments).where(inArray(S.payments.orderId, createdOrders))
         await db.delete(S.orders).where(inArray(S.orders.id, createdOrders))
       }
