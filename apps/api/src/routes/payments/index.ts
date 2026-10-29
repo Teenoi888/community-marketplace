@@ -73,6 +73,9 @@ export async function paymentRoutes(app: FastifyInstance) {
     const order = await getBuyerOrder(userId, body.orderId)
     if (!order) return reply.code(404).send(orderNotFound)
     if (order.status !== "pending_payment") return reply.code(409).send(orderNotPayable)
+    if (order.paymentExpiresAt && order.paymentExpiresAt.getTime() <= Date.now()) {
+      return reply.code(409).send({ success: false, error: "order_expired", message: "ออเดอร์นี้หมดเวลาชำระเงินแล้ว" })
+    }
 
     if (body.method !== "bank_transfer" || !body.slipUrl) {
       // Other methods are created through /promptpay-qr and /card-session and are confirmed
@@ -110,6 +113,9 @@ export async function paymentRoutes(app: FastifyInstance) {
     const order = await getBuyerOrder(userId, orderId)
     if (!order) return reply.code(404).send(orderNotFound)
     if (order.status !== "pending_payment") return reply.code(409).send(orderNotPayable)
+    if (order.paymentExpiresAt && order.paymentExpiresAt.getTime() <= Date.now()) {
+      return reply.code(409).send({ success: false, error: "order_expired", message: "ออเดอร์นี้หมดเวลาชำระเงินแล้ว" })
+    }
     const amount = Number(order.total)
 
     if (process.env.XENDIT_SECRET_KEY) {
@@ -170,6 +176,9 @@ export async function paymentRoutes(app: FastifyInstance) {
     const order = await getBuyerOrder(userId, body.orderId)
     if (!order) return reply.code(404).send(orderNotFound)
     if (order.status !== "pending_payment") return reply.code(409).send(orderNotPayable)
+    if (order.paymentExpiresAt && order.paymentExpiresAt.getTime() <= Date.now()) {
+      return reply.code(409).send({ success: false, error: "order_expired", message: "ออเดอร์นี้หมดเวลาชำระเงินแล้ว" })
+    }
 
     const gateway = detectCardGateway()
 
@@ -244,7 +253,10 @@ export async function paymentRoutes(app: FastifyInstance) {
             amount: Number(order.total),
             currency: "THB",
             description: `ตลาดชุมชน — ออเดอร์ #${order.id.slice(0, 8).toUpperCase()}`,
-            invoice_duration: 3600,
+            // never let an invoice outlive the order's payment deadline
+            invoice_duration: order.paymentExpiresAt
+              ? Math.max(60, Math.min(3600, Math.floor((order.paymentExpiresAt.getTime() - Date.now()) / 1000)))
+              : 3600,
             payment_methods: ["CREDIT_CARD"],
             success_redirect_url: `${appUrl}/checkout/${order.id}`,
             failure_redirect_url: `${appUrl}/checkout/${order.id}`,

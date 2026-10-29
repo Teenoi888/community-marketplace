@@ -37,6 +37,7 @@ import { users, communities, communityMembers, shops, products, orders } from ".
 import { count, eq, lte, and } from "drizzle-orm"
 import bcrypt from "bcryptjs"
 import { notifyOrderStatus } from "./lib/notify.js"
+import { startOrderExpiryJob } from "./lib/orderExpiry.js"
 
 // Auto-migrate on startup — run all .sql files in order (all use IF NOT EXISTS so safe to re-run)
 // Each file is wrapped individually: a failure in one migration (e.g. a stale
@@ -208,3 +209,6 @@ async function autoCompleteShippedOrders() {
 // Run once on startup then every 24h
 autoCompleteShippedOrders()
 setInterval(autoCompleteShippedOrders, 24 * 60 * 60 * 1000)
+
+// Cancel unpaid orders past their payment deadline and return their stock
+startOrderExpiryJob()

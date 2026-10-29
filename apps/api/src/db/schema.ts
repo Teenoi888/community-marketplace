@@ -119,7 +119,14 @@ export const orders = pgTable("orders", {
   logisticsProvider: text("logistics_provider"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-})
+  // migration 0017 — expiry + reservation bookkeeping
+  paymentExpiresAt: timestamp("payment_expires_at"),   // null = no deadline (legacy orders)
+  stockReservedAt: timestamp("stock_reserved_at"),     // set while this order holds reserved stock
+  cancelReason: text("cancel_reason"),                 // buyer_cancelled | seller_cancelled | admin_cancelled | payment_expired
+  cancelledAt: timestamp("cancelled_at"),
+}, (t) => ({
+  pendingExpiryIdx: index("orders_pending_expiry_idx").on(t.paymentExpiresAt).where(sql`status = 'pending_payment'`),
+}))
 
 export const orderItems = pgTable("order_items", {
   id: uuid("id").primaryKey().defaultRandom(),

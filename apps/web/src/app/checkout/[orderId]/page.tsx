@@ -10,7 +10,7 @@ import Image from "next/image"
 type PaymentMethod = "promptpay" | "bank_transfer" | "credit_card"
 type PaymentStatus = "pending" | "verifying" | "verified"
 
-interface OrderData { id: string; total: string; status: string }
+interface OrderData { id: string; total: string; status: string; paymentExpiresAt?: string | null; cancelReason?: string | null }
 interface GatewayInfo {
   configured: boolean
   cardGateway: string | null
@@ -194,6 +194,24 @@ export default function PaymentPage({ params }: { params: { orderId: string } })
           <p className="text-gray-500 mb-6">ผู้ขายได้รับออเดอร์ของคุณแล้ว กำลังเตรียมสินค้า</p>
           <button onClick={() => router.push("/orders")} className="btn-primary w-full py-3">
             ดูสถานะออเดอร์
+          </button>
+        </div>
+      </main>
+    )
+  }
+
+  const expired = !!order && order.status === "pending_payment" && !!order.paymentExpiresAt && new Date(order.paymentExpiresAt).getTime() <= Date.now()
+  if (order && (order.status === "cancelled" || expired)) {
+    return (
+      <main>
+        <MainNav />
+        <div className="max-w-md mx-auto px-4 py-20 text-center">
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">ออเดอร์นี้ไม่สามารถชำระเงินได้แล้ว</h1>
+          <p className="text-gray-500 mb-6">
+            {order.cancelReason === "payment_expired" || expired ? "เกินเวลาชำระเงินที่กำหนด" : "ออเดอร์ถูกยกเลิกแล้ว"} กรุณาสั่งซื้อใหม่อีกครั้ง
+          </p>
+          <button onClick={() => router.push("/orders")} className="btn-primary w-full py-3">
+            ดูออเดอร์ของฉัน
           </button>
         </div>
       </main>

@@ -57,10 +57,12 @@ export async function createHarness() {
   const { db } = await import("../../db/index.js")
   const S = await import("../../db/schema.js")
   const { paymentRoutes } = await import("./index.js")
+  const { orderRoutes } = await import("../orders/index.js")
 
   const app: FastifyInstance = Fastify()
   await app.register(jwt, { secret: process.env.JWT_SECRET! })
   await app.register(paymentRoutes, { prefix: "/api/payments" })
+  await app.register(orderRoutes, { prefix: "/api/orders" })
   await app.ready()
 
   const phone = () => `0${Math.floor(1e9 + Math.random() * 8e9)}`
@@ -82,6 +84,25 @@ export async function createHarness() {
     return o
   }
 
+  const createdProducts: string[] = []
+  const createdCoupons: string[] = []
+  async function makeProduct(stock: number, over: Record<string, unknown> = {}) {
+    const [p] = await db.insert(S.products).values({
+      shopId: shop.id, name: uniqueId("prod"), price: "100.00", stock, category: "t", ...over,
+    } as any).returning()
+    createdProducts.push(p.id)
+    return p
+  }
+  async function makeCoupon(over: Record<string, unknown> = {}) {
+    const [c] = await db.insert(S.coupons).values({
+      code: uniqueId("CP").toUpperCase(), discountType: "fixed", discountValue: "10", ...over,
+    } as any).returning()
+    createdCoupons.push(c.id)
+    return c
+  }
+  /** Orders created through POST /api/orders must be cleaned up too. */
+  const trackOrder = (id: string) => { createdOrders.push(id) }
+
   const savedEnv: Record<string, string | undefined> = {}
   const setEnv = (k: string, v: string | undefined) => {
     if (!(k in savedEnv)) savedEnv[k] = process.env[k]
@@ -91,7 +112,12 @@ export async function createHarness() {
 
   return {
     app, db, S, xendit, omise, omiseCharges, buyerToken, otherToken, buyerId: buyer.id, otherId: other.id, shopId: shop.id,
-    makeOrder, setEnv,
+    makeOrder, makeProduct, makeCoupon, trackOrder, setEnv,
+    productRow: async (id: string) => (await db.select().from(S.products).where(eq(S.products.id, id)))[0],
+    couponRow: async (id: string) => (await db.select().from(S.coupons).where(eq(S.coupons.id, id)))[0],
+    stockLogRows: async (productId: string) => db.select().from(S.stockLogs).where(eq(S.stockLogs.productId, productId)),
+    orderCall: (method: "GET" | "POST" | "PATCH", url: string, token?: string, payload?: any) =>
+      app.inject({ method, url: `/api/orders${url}`, payload, headers: token ? { authorization: `Bearer ${token}` } : {} }),
     orderRow: async (id: string) => (await db.select().from(S.orders).where(eq(S.orders.id, id)))[0],
     paymentRows: async (orderId: string) => db.select().from(S.payments).where(eq(S.payments.orderId, orderId)),
     eventRows: async (orderId: string) => db.select().from(S.paymentEvents).where(eq(S.paymentEvents.orderId, orderId)),
@@ -114,6 +140,8 @@ export async function createHarness() {
         await db.delete(S.payments).where(inArray(S.payments.orderId, createdOrders))
         await db.delete(S.orders).where(inArray(S.orders.id, createdOrders))
       }
+      if (createdProducts.length) await db.delete(S.products).where(inArray(S.products.id, createdProducts))
+      if (createdCoupons.length) await db.delete(S.coupons).where(inArray(S.coupons.id, createdCoupons))
       await db.delete(S.shops).where(eq(S.shops.id, shop.id))
       await db.delete(S.communities).where(eq(S.communities.id, community.id))
       await db.delete(S.users).where(inArray(S.users.id, [buyer.id, other.id]))
