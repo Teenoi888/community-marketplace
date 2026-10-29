@@ -37,6 +37,7 @@ function fmt(n: number) {
 export default function WithdrawalsPage() {
   const [shopId, setShopId] = useState<string | null>(null)
   const [balance, setBalance] = useState<number | null>(null)
+  const [info, setInfo] = useState<{ holding: number; inProgress: number; holdDays: number } | null>(null)
   const [history, setHistory] = useState<WithdrawalRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -54,6 +55,7 @@ export default function WithdrawalsPage() {
         api.get(`/withdrawals/mine?shopId=${id}`),
       ])
       setBalance(b.data.data.balance)
+      setInfo(b.data.data)
       setHistory(h.data.data || [])
     } catch {
       toast.error("โหลดข้อมูลไม่สำเร็จ")
@@ -119,6 +121,13 @@ export default function WithdrawalsPage() {
                 <div className="text-2xl font-bold text-gray-900">{fmt(balance ?? 0)}</div>
               </div>
             </div>
+            {info && (
+              <div className="card text-sm text-gray-600 space-y-1">
+                <div className="flex justify-between"><span>รอครบ {info.holdDays} วันหลังส่งถึงผู้ซื้อ</span><span className="font-medium">{fmt(info.holding)}</span></div>
+                <div className="flex justify-between"><span>ออเดอร์ที่ยังไม่ส่งถึงผู้ซื้อ</span><span className="font-medium">{fmt(info.inProgress)}</span></div>
+                <p className="text-xs text-gray-400 pt-1">ถอนได้เฉพาะออเดอร์ที่ส่งถึงแล้วเกิน {info.holdDays} วัน และไม่มีคำขอคืนเงิน</p>
+              </div>
+            )}
 
             <form onSubmit={handleSubmit} className="card space-y-4">
               <h2 className="font-semibold text-gray-800">ขอถอนเงิน</h2>

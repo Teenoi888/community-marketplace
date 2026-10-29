@@ -58,12 +58,14 @@ export async function createHarness() {
   const { paymentRoutes } = await import("./index.js")
   const { orderRoutes } = await import("../orders/index.js")
   const { refundRoutes } = await import("../refunds/index.js")
+  const { withdrawalRoutes } = await import("../withdrawals/index.js")
 
   const app: FastifyInstance = Fastify()
   await app.register(jwt, { secret: process.env.JWT_SECRET! })
   await app.register(paymentRoutes, { prefix: "/api/payments" })
   await app.register(orderRoutes, { prefix: "/api/orders" })
   await app.register(refundRoutes, { prefix: "/api/refunds" })
+  await app.register(withdrawalRoutes, { prefix: "/api/withdrawals" })
   await app.ready()
 
   const phone = () => `0${Math.floor(1e9 + Math.random() * 8e9)}`
@@ -118,6 +120,8 @@ export async function createHarness() {
     refundCall: (method: "GET" | "POST", url: string, token?: string, payload?: any) =>
       app.inject({ method, url: `/api/refunds${url}`, payload, headers: token ? { authorization: `Bearer ${token}` } : {} }),
     refundRows: async (orderId: string) => db.select().from(S.refunds).where(eq(S.refunds.orderId, orderId)),
+    withdrawCall: (method: "GET" | "POST" | "PATCH", url: string, token?: string, payload?: any) =>
+      app.inject({ method, url: `/api/withdrawals${url}`, payload, headers: token ? { authorization: `Bearer ${token}` } : {} }),
     makeOrder, makeProduct, makeCoupon, trackOrder, setEnv,
     productRow: async (id: string) => (await db.select().from(S.products).where(eq(S.products.id, id)))[0],
     couponRow: async (id: string) => (await db.select().from(S.coupons).where(eq(S.coupons.id, id)))[0],
@@ -149,6 +153,7 @@ export async function createHarness() {
       }
       if (createdProducts.length) await db.delete(S.products).where(inArray(S.products.id, createdProducts))
       if (createdCoupons.length) await db.delete(S.coupons).where(inArray(S.coupons.id, createdCoupons))
+      await db.delete(S.withdrawalRequests).where(eq(S.withdrawalRequests.shopId, shop.id))
       await db.delete(S.shops).where(eq(S.shops.id, shop.id))
       await db.delete(S.communities).where(eq(S.communities.id, community.id))
       await db.delete(S.adminActivityLogs).where(eq(S.adminActivityLogs.adminId, admin.id))
