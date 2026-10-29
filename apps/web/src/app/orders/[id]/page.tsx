@@ -230,6 +230,8 @@ export default function OrderDetailPage() {
           </div>
         )}
 
+        {order.status !== "pending_payment" && <RefundSection order={order} />}
+
         {/* Payment action */}
         {order.status === "pending_payment" && (
           <div className="space-y-3">
@@ -317,5 +319,58 @@ function CancelOrderButton({ orderId, onCancelled }: { orderId: string; onCancel
     >
       {loading ? "กำลังยกเลิก..." : "ยกเลิกออเดอร์"}
     </button>
+  )
+}
+
+const REFUND_STATUS_LABELS: Record<string, string> = {
+  requested: "รอตรวจสอบ",
+  approved: "อนุมัติแล้ว — กำลังโอนเงินคืน",
+  rejected: "ไม่อนุมัติ",
+  refunded: "คืนเงินแล้ว",
+}
+
+function RefundSection({ order }: { order: any }) {
+  const [refunds, setRefunds] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+
+  const load = () => api.get(`/refunds?orderId=${order.id}`).then(r => setRefunds(r.data.data)).catch(() => {})
+  useEffect(() => { load() }, [order.id, order.status])
+
+  const hasOpen = refunds.some(r => r.status === "requested" || r.status === "approved")
+  const canAsk = !!order.payment && !hasOpen && ["paid", "preparing", "shipped", "delivered"].includes(order.status)
+  if (refunds.length === 0 && !canAsk) return null
+
+  async function ask() {
+    const reason = window.prompt("เหตุผลที่ขอคืนเงิน")
+    if (!reason || reason.trim().length < 3) return
+    setLoading(true)
+    try {
+      await api.post("/refunds", { orderId: order.id, reason: reason.trim() })
+      await load()
+    } catch (e: any) {
+      alert(e?.response?.data?.error || "เกิดข้อผิดพลาด กรุณาลองใหม่")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+      <h2 className="font-semibold text-gray-800 mb-3">การคืนเงิน</h2>
+      <ul className="text-sm text-gray-600 space-y-2">
+        {refunds.map(r => (
+          <li key={r.id} className="flex justify-between gap-4">
+            <span>฿{Number(r.amount).toLocaleString("th-TH", { minimumFractionDigits: 2 })} — {r.reason}</span>
+            <span className="font-medium whitespace-nowrap">{REFUND_STATUS_LABELS[r.status] || r.status}</span>
+          </li>
+        ))}
+      </ul>
+      {canAsk && (
+        <button onClick={ask} disabled={loading}
+          className="mt-3 w-full py-3 rounded-2xl border border-gray-300 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-all disabled:opacity-50">
+          {loading ? "กำลังส่งคำขอ..." : "ขอคืนเงิน"}
+        </button>
+      )}
+    </div>
   )
 }

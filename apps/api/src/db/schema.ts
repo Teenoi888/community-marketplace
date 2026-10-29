@@ -159,6 +159,25 @@ export const payments = pgTable("payments", {
   oneVerifiedPerOrder: uniqueIndex("payments_one_verified_per_order").on(t.orderId).where(sql`status = 'verified'`),
 }))
 
+// Refund requests (migration 0018). requested → approved → refunded, or rejected.
+export const refunds = pgTable("refunds", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  orderId: uuid("order_id").references(() => orders.id, { onDelete: "cascade" }).notNull(),
+  paymentId: uuid("payment_id").references(() => payments.id, { onDelete: "cascade" }).notNull(),
+  amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
+  reason: text("reason").notNull(),
+  status: text("status").$type<"requested" | "approved" | "rejected" | "refunded">().default("requested").notNull(),
+  requestedBy: uuid("requested_by").references(() => users.id, { onDelete: "set null" }),
+  approvedBy: uuid("approved_by").references(() => users.id, { onDelete: "set null" }),
+  adminNote: text("admin_note"),
+  providerRefundRef: text("provider_refund_ref"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  decidedAt: timestamp("decided_at"),
+  refundedAt: timestamp("refunded_at"),
+}, (t) => ({
+  oneOpenPerOrder: uniqueIndex("refunds_one_open_per_order").on(t.orderId).where(sql`status IN ('requested','approved')`),
+}))
+
 // Every authenticated gateway callback and what we did with it (settled / duplicate / rejected / ...).
 export const paymentEvents = pgTable("payment_events", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -407,4 +426,10 @@ export const conversationsRelations = relations(conversations, ({ one, many }) =
 export const messagesRelations = relations(messages, ({ one }) => ({
   conversation: one(conversations, { fields: [messages.conversationId], references: [conversations.id] }),
   sender: one(users, { fields: [messages.senderId], references: [users.id] }),
+}))
+
+export const refundsRelations = relations(refunds, ({ one }) => ({
+  order: one(orders, { fields: [refunds.orderId], references: [orders.id] }),
+  payment: one(payments, { fields: [refunds.paymentId], references: [payments.id] }),
+  requester: one(users, { fields: [refunds.requestedBy], references: [users.id], relationName: "refund_requester" }),
 }))
