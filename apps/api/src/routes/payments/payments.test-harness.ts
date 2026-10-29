@@ -59,6 +59,7 @@ export async function createHarness() {
   const { orderRoutes } = await import("../orders/index.js")
   const { refundRoutes } = await import("../refunds/index.js")
   const { withdrawalRoutes } = await import("../withdrawals/index.js")
+  const { slipRoutes } = await import("../slips/index.js")
 
   const app: FastifyInstance = Fastify()
   await app.register(jwt, { secret: process.env.JWT_SECRET! })
@@ -66,6 +67,7 @@ export async function createHarness() {
   await app.register(orderRoutes, { prefix: "/api/orders" })
   await app.register(refundRoutes, { prefix: "/api/refunds" })
   await app.register(withdrawalRoutes, { prefix: "/api/withdrawals" })
+  await app.register(slipRoutes, { prefix: "/api/slips" })
   await app.ready()
 
   const phone = () => `0${Math.floor(1e9 + Math.random() * 8e9)}`
@@ -122,6 +124,8 @@ export async function createHarness() {
     refundRows: async (orderId: string) => db.select().from(S.refunds).where(eq(S.refunds.orderId, orderId)),
     withdrawCall: (method: "GET" | "POST" | "PATCH", url: string, token?: string, payload?: any) =>
       app.inject({ method, url: `/api/withdrawals${url}`, payload, headers: token ? { authorization: `Bearer ${token}` } : {} }),
+    slipCall: (method: "GET" | "POST", url: string, token?: string, payload?: any) =>
+      app.inject({ method, url: `/api/slips${url}`, payload, headers: token ? { authorization: `Bearer ${token}` } : {} }),
     makeOrder, makeProduct, makeCoupon, trackOrder, setEnv,
     productRow: async (id: string) => (await db.select().from(S.products).where(eq(S.products.id, id)))[0],
     couponRow: async (id: string) => (await db.select().from(S.coupons).where(eq(S.coupons.id, id)))[0],
