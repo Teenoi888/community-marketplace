@@ -6,6 +6,7 @@ import { db } from "../../db/index.js"
 import { payments, orders } from "../../db/schema.js"
 import { eq } from "drizzle-orm"
 import { requireAuth } from "../../middleware/auth.js"
+import { settleOrderPayment, webhookReply } from "../../lib/payments.js"
 
 const createPaymentSchema = z.object({
   orderId: z.string().uuid(),
@@ -29,6 +30,13 @@ const orderNotPayable = { success: false, error: "ออเดอร์นี้
 // amount, so one real slip could settle many orders. When enabled (SLIP_PAYMENT_ENABLED=true)
 // a slip only records a `verifying` payment — it never marks the order paid by itself.
 const slipPaymentEnabled = () => process.env.SLIP_PAYMENT_ENABLED === "true"
+
+// A number from an untrusted payload, or null. Never NaN/Infinity (Postgres numeric would accept 'NaN').
+const finite = (v: unknown): number | null => {
+  if (v === undefined || v === null || v === "") return null
+  const n = Number(v)
+  return Number.isFinite(n) ? n : null
+}
 
 // Omise API base (override only for local testing with a mock server)
 const OMISE_API_BASE = process.env.OMISE_API_BASE || "https://api.omise.co"
@@ -199,12 +207,24 @@ export async function paymentRoutes(app: FastifyInstance) {
         }
         // Immediate success
         if (charge.status === "successful") {
-          const [payment] = await db.insert(payments).values({
-            orderId: order.id, method: "credit_card", amount: order.total, status: "verified",
-            reference: charge.id, verifiedAt: new Date(),
-          }).returning()
-          await db.update(orders).set({ status: "paid", updatedAt: new Date() }).where(eq(orders.id, order.id))
-          return { success: true, data: { gateway: "omise", payment, verified: true } }
+          const result = await settleOrderPayment({
+            orderId: order.id,
+            provider: "omise",
+            providerRef: charge.id,
+            method: "credit_card",
+            paidAmount: finite(charge.amount) === null ? null : finite(charge.amount)! / 100,
+            currency: charge.currency,
+            validate: (o) =>
+              charge.amount !== Math.round(Number(o.total) * 100) ? "amount_mismatch"
+              : String(charge.currency).toLowerCase() !== "thb" ? "currency_mismatch"
+              : null,
+          })
+          if (result.outcome === "settled" || result.outcome === "duplicate") {
+            return { success: true, data: { gateway: "omise", payment: result.payment, verified: true } }
+          }
+          // Omise took the money but we could not attach it to this order: needs a human.
+          app.log.error({ orderId: order.id, chargeId: charge.id, outcome: result.outcome, reason: result.reason }, "Omise charge succeeded but could not be settled")
+          return reply.code(409).send({ success: false, error: "ชำระเงินแล้วแต่ระบบยืนยันคำสั่งซื้อไม่สำเร็จ กรุณาติดต่อทีมงาน" })
         }
         return reply.code(402).send({ success: false, error: `การชำระล้มเหลว: ${charge.failure_message}` })
       } catch (err: any) {
@@ -309,7 +329,11 @@ export async function paymentRoutes(app: FastifyInstance) {
     return { success: true, data: payment }
   })
 
-  // ── Webhook: Xendit QR Payment ───────────────────────────────────────────
+  // ── Webhook: Xendit (QR + card invoice) ──────────────────────────────────
+  // Business outcomes (duplicate, amount mismatch, cancelled order …) are answered 200 — retrying
+  // can't change them — and are recorded in payment_events. An UNEXPECTED failure (database error …)
+  // is NOT caught here: the handler answers 5xx and Xendit retries, which is safe because
+  // settleOrderPayment is atomic and idempotent.
   app.post("/webhook/xendit", async (request, reply) => {
     // Verify webhook token
     const token = request.headers["x-callback-token"]
@@ -320,62 +344,49 @@ export async function paymentRoutes(app: FastifyInstance) {
 
     // Invoice paid (บัตรเครดิต/เดบิตผ่านหน้า Xendit Invoice)
     if (body?.external_id && (body.status === "PAID" || body.status === "SETTLED")) {
-      const orderId: string = body.external_id
-      try {
-        const order = await db.query.orders.findFirst({ where: eq(orders.id, orderId) })
-        if (order && order.status === "pending_payment" && Number(body.paid_amount ?? body.amount) >= Number(order.total)) {
-          await db.insert(payments).values({
-            orderId,
-            method: "credit_card",
-            amount: order.total,
-            status: "verified",
-            reference: body.id,
-            verifiedAt: new Date(),
-          }).onConflictDoNothing()
-          await db.update(orders).set({ status: "paid", updatedAt: new Date() }).where(eq(orders.id, orderId))
-        }
-      } catch (e) {
-        app.log.error(e, "Xendit invoice webhook processing error")
-      }
-      return { success: true }
+      if (typeof body.id !== "string") return reply.code(400).send({ success: false, error: "invalid_payload" })
+      const paid = finite(body.paid_amount ?? body.amount)
+      const result = await settleOrderPayment({
+        orderId: body.external_id,
+        provider: "xendit",
+        providerRef: body.id,
+        method: "credit_card",
+        paidAmount: paid,
+        currency: body.currency ?? "THB",
+        validate: (order) =>
+          paid === null || paid < Number(order.total) ? "amount_mismatch"
+          : body.currency && String(body.currency).toUpperCase() !== "THB" ? "currency_mismatch"
+          : null,
+        // PAID and SETTLED are separate events for the same invoice; the second one is a harmless "duplicate"
+        event: { id: `invoice:${body.id}:${body.status}`, type: `invoice.${String(body.status).toLowerCase()}`, payload: body },
+      })
+      return webhookReply(result)
     }
 
     // QR payment completed
-    if (body.event === "qr.payment" && body.data?.status === "COMPLETED") {
-      const orderId: string = body.data.reference_id
-      try {
-        const order = await db.query.orders.findFirst({ where: eq(orders.id, orderId) })
-        if (order && order.status === "pending_payment") {
-          // The QR is created server-side for exactly order.total, but never trust the callback
-          // alone: when it reports an amount/currency it must match the order before we mark it paid.
-          const reportedAmount = body.data.amount
-          const reportedCurrency = body.data.currency
-          const amountMismatch =
-            reportedAmount !== undefined && reportedAmount !== null &&
-            Math.abs(Number(reportedAmount) - Number(order.total)) > 0.009
-          const currencyMismatch =
-            reportedCurrency !== undefined && reportedCurrency !== null &&
-            String(reportedCurrency).toUpperCase() !== "THB"
-          if (amountMismatch || currencyMismatch) {
-            app.log.warn(
-              { orderId, reportedAmount, reportedCurrency, expected: order.total },
-              "Xendit QR webhook amount/currency mismatch — order NOT marked paid",
-            )
-            return { success: false, error: "amount_mismatch" }
-          }
-          await db.insert(payments).values({
-            orderId,
-            method: "promptpay",
-            amount: order.total,
-            status: "verified",
-            reference: body.data.id,
-            verifiedAt: new Date(),
-          }).onConflictDoNothing()
-          await db.update(orders).set({ status: "paid", updatedAt: new Date() }).where(eq(orders.id, orderId))
-        }
-      } catch (e) {
-        app.log.error(e, "Xendit webhook processing error")
+    if (body?.event === "qr.payment" && body.data?.status === "COMPLETED") {
+      if (typeof body.data.id !== "string") return reply.code(400).send({ success: false, error: "invalid_payload" })
+      // The QR is created server-side for exactly order.total, but never trust the callback alone:
+      // when it reports an amount/currency it must match the order before we mark it paid.
+      const reportedAmount = finite(body.data.amount)
+      const reportedCurrency = body.data.currency
+      const result = await settleOrderPayment({
+        orderId: body.data.reference_id,
+        provider: "xendit",
+        providerRef: body.data.id,
+        method: "promptpay",
+        paidAmount: reportedAmount,
+        currency: reportedCurrency ?? "THB",
+        validate: (order) =>
+          reportedAmount !== null && Math.abs(reportedAmount - Number(order.total)) > 0.009 ? "amount_mismatch"
+          : reportedCurrency && String(reportedCurrency).toUpperCase() !== "THB" ? "currency_mismatch"
+          : null,
+        event: { id: `qr.payment:${body.data.id}`, type: "qr.payment", payload: body },
+      })
+      if (result.outcome === "rejected") {
+        app.log.warn({ orderId: body.data.reference_id, reportedAmount, reportedCurrency, reason: result.reason }, "Xendit QR webhook rejected — order NOT marked paid")
       }
+      return webhookReply(result)
     }
     return { success: true }
   })
@@ -405,32 +416,24 @@ export async function paymentRoutes(app: FastifyInstance) {
       return reply.code(502).send({ success: false }) // non-2xx so Omise retries
     }
 
-    const orderId = charge?.metadata?.orderId
-    const order = typeof orderId === "string"
-      ? await db.query.orders.findFirst({ where: eq(orders.id, orderId) })
-      : undefined
-    if (!order) return { success: false, error: "order_not_found" }
-    if (order.status !== "pending_payment") return { success: true } // already processed
-
-    const valid =
-      charge.status === "successful" &&
-      String(charge.currency).toLowerCase() === "thb" &&
-      charge.amount === Math.round(Number(order.total) * 100)
-    if (!valid) {
-      app.log.warn({ orderId: order.id, chargeId, status: charge.status }, "Omise charge does not match order — NOT marked paid")
-      return { success: false, error: "charge_mismatch" }
-    }
-
-    await db.insert(payments).values({
-      orderId: order.id,
+    const result = await settleOrderPayment({
+      orderId: charge?.metadata?.orderId,
+      provider: "omise",
+      providerRef: String(charge?.id ?? chargeId),
       method: "credit_card",
-      amount: order.total,
-      status: "verified",
-      reference: charge.id,
-      verifiedAt: new Date(),
-    }).onConflictDoNothing()
-    await db.update(orders).set({ status: "paid", updatedAt: new Date() }).where(eq(orders.id, order.id))
-    return { success: true }
+      paidAmount: finite(charge?.amount) === null ? null : finite(charge.amount)! / 100,
+      currency: charge?.currency,
+      validate: (order) =>
+        charge.status !== "successful" ? "charge_not_successful"
+        : String(charge.currency).toLowerCase() !== "thb" ? "currency_mismatch"
+        : charge.amount !== Math.round(Number(order.total) * 100) ? "amount_mismatch"
+        : null,
+      event: { id: String(event.id ?? `charge:${chargeId}`), type: event.key, payload: { webhook: event, charge } },
+    })
+    if (result.outcome === "rejected") {
+      app.log.warn({ chargeId, reason: result.reason }, "Omise charge does not match order — NOT marked paid")
+    }
+    return webhookReply(result)
   })
 
   // NOTE: the GB Prime Pay (/webhook/gbpay) and 2C2P (/webhook/2c2p) handlers were removed on
