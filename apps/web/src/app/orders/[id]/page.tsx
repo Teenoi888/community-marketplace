@@ -209,9 +209,21 @@ export default function OrderDetailPage() {
 
         {/* Payment action */}
         {order.status === "pending_payment" && (
-          <Link href={`/checkout/${order.id}`} className="btn-primary w-full py-4 text-center text-base block">
-            ชำระเงินเลย
-          </Link>
+          <div className="space-y-3">
+            {order.paymentExpiresAt && (
+              <p className="text-center text-sm text-amber-700">
+                กรุณาชำระเงินภายใน {new Date(order.paymentExpiresAt).toLocaleString("th-TH", { dateStyle: "medium", timeStyle: "short" })} มิฉะนั้นออเดอร์จะถูกยกเลิกอัตโนมัติ
+              </p>
+            )}
+            <Link href={`/checkout/${order.id}`} className="btn-primary w-full py-4 text-center text-base block">
+              ชำระเงินเลย
+            </Link>
+            <CancelOrderButton orderId={order.id} onCancelled={(o) => setOrder({ ...order, ...o })} />
+          </div>
+        )}
+
+        {order.status === "cancelled" && order.cancelReason === "payment_expired" && (
+          <p className="text-center text-sm text-gray-500">ออเดอร์นี้ถูกยกเลิกเพราะเกินเวลาชำระเงิน</p>
         )}
 
         {/* Confirm received */}
@@ -254,6 +266,33 @@ function ConfirmReceivedButton({ orderId, onConfirmed }: { orderId: string; onCo
       className="w-full py-4 rounded-2xl bg-green-600 text-white font-semibold text-base hover:bg-green-700 active:scale-95 transition-all disabled:opacity-50"
     >
       {loading ? "กำลังยืนยัน..." : "✅ ได้รับสินค้าแล้ว"}
+    </button>
+  )
+}
+
+function CancelOrderButton({ orderId, onCancelled }: { orderId: string; onCancelled: (o: any) => void }) {
+  const [loading, setLoading] = useState(false)
+
+  async function handleCancel() {
+    if (!window.confirm("ยืนยันยกเลิกออเดอร์นี้? สินค้าจะถูกคืนสู่สต็อกและไม่สามารถกู้คืนได้")) return
+    setLoading(true)
+    try {
+      const r = await api.post(`/orders/${orderId}/cancel`)
+      onCancelled(r.data.data)
+    } catch (e: any) {
+      alert(e?.response?.data?.error || "เกิดข้อผิดพลาด กรุณาลองใหม่")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <button
+      onClick={handleCancel}
+      disabled={loading}
+      className="w-full py-3 rounded-2xl border border-gray-300 text-gray-600 text-sm font-medium hover:bg-gray-50 transition-all disabled:opacity-50"
+    >
+      {loading ? "กำลังยกเลิก..." : "ยกเลิกออเดอร์"}
     </button>
   )
 }

@@ -2,10 +2,11 @@ import type { FastifyInstance } from "fastify"
 import { z } from "zod"
 import { db } from "../../db/index.js"
 import { orders, orderItems, products, shops, users, coupons, couponRedemptions } from "../../db/schema.js"
-import { eq, sql } from "drizzle-orm"
+import { and, eq, gte, sql } from "drizzle-orm"
 import { requireAuth } from "../../middleware/auth.js"
 import { notifyOrderStatus } from "../../lib/notify.js"
 import { findValidCoupon } from "../coupons/index.js"
+import { cancelOrder, newPaymentDeadline } from "../../lib/orders.js"
 import postgres from "postgres"
 
 const rawSql = postgres(process.env.DATABASE_URL!, { max: 1 })
@@ -75,70 +76,95 @@ export async function orderRoutes(app: FastifyInstance) {
     const { userId } = request.user as { userId: string }
     const body = createOrderSchema.parse(request.body)
 
-    // Fetch product prices & validate stock
+    if (body.items.length === 0) return reply.code(400).send({ success: false, error: "ไม่มีสินค้าในออเดอร์" })
+
+    // Everything that makes the order real happens in ONE transaction: stock reservation, coupon use,
+    // the order and its items. If any step fails (e.g. the last unit was just taken), nothing is kept.
+    class OrderError extends Error { constructor(public code: number, msg: string) { super(msg) } }
+    let order: typeof orders.$inferSelect
     let total = 0
-    const lineItems = []
+    const lineItems: { product: typeof products.$inferSelect; quantity: number; price: number }[] = []
+    try {
+      order = await db.transaction(async (tx) => {
+        // Same product twice in the cart → one line, so the stock check below sees the real quantity.
+        const wanted = new Map<string, number>()
+        for (const item of body.items) wanted.set(item.productId, (wanted.get(item.productId) ?? 0) + item.quantity)
 
-    for (const item of body.items) {
-      const product = await db.query.products.findFirst({ where: eq(products.id, item.productId) })
-      if (!product) return reply.code(404).send({ success: false, error: `ไม่พบสินค้า ${item.productId}` })
-      if (product.stock < item.quantity) {
-        return reply.code(400).send({ success: false, error: `สินค้า "${product.name}" สต็อกไม่เพียงพอ` })
-      }
-      const price = Number(product.price)
-      total += price * item.quantity
-      lineItems.push({ product, quantity: item.quantity, price })
-    }
+        for (const [productId, quantity] of wanted) {
+          const [product] = await tx.select().from(products).where(eq(products.id, productId))
+          if (!product) throw new OrderError(404, `ไม่พบสินค้า ${productId}`)
+          if (product.shopId !== body.shopId) throw new OrderError(400, `สินค้า "${product.name}" ไม่ได้อยู่ในร้านนี้`)
+          if (product.status !== "active") throw new OrderError(400, `สินค้า "${product.name}" ไม่พร้อมขาย`)
+          // One conditional statement: take the stock only if it is still there. Two buyers racing for the
+          // last unit can't both succeed, and stock can never go negative.
+          const taken = await tx.update(products)
+            .set({
+              stock: sql`${products.stock} - ${quantity}`,
+              status: sql`CASE WHEN ${products.stock} - ${quantity} = 0 THEN 'out_of_stock' ELSE ${products.status} END`,
+              updatedAt: new Date(),
+            })
+            .where(and(eq(products.id, productId), gte(products.stock, quantity)))
+            .returning({ id: products.id })
+          if (taken.length === 0) throw new OrderError(400, `สินค้า "${product.name}" สต็อกไม่เพียงพอ`)
+          const price = Number(product.price)
+          total += price * quantity
+          lineItems.push({ product, quantity, price })
+        }
 
-    // Apply coupon (if any) — validated server-side again, never trust the discount from the client
-    let discount = 0
-    let appliedCoupon: typeof coupons.$inferSelect | null = null
-    if (body.couponCode) {
-      const result = await findValidCoupon(body.couponCode, body.shopId, total)
-      if ("error" in result) return reply.code(400).send({ success: false, error: result.error })
-      discount = result.discount
-      appliedCoupon = result.coupon
-    }
-    const finalTotal = total - discount
+        // Coupon — validated server-side again (never trust the client's discount), then claimed
+        // atomically so a usage limit can't be exceeded by concurrent orders.
+        let discount = 0
+        let appliedCoupon: typeof coupons.$inferSelect | null = null
+        if (body.couponCode) {
+          const result = await findValidCoupon(body.couponCode, body.shopId, total)
+          if ("error" in result) throw new OrderError(400, result.error ?? "คูปองใช้ไม่ได้")
+          discount = result.discount
+          appliedCoupon = result.coupon
+          const claimed = await tx.update(coupons)
+            .set({ usedCount: sql`${coupons.usedCount} + 1` })
+            .where(and(
+              eq(coupons.id, appliedCoupon.id),
+              sql`(${coupons.usageLimit} IS NULL OR ${coupons.usedCount} < ${coupons.usageLimit})`,
+            ))
+            .returning({ id: coupons.id })
+          if (claimed.length === 0) throw new OrderError(400, "คูปองนี้ถูกใช้ครบจำนวนแล้ว")
+        }
 
-    // Create order
-    const [order] = await db.insert(orders).values({
-      buyerId: userId,
-      shopId: body.shopId,
-      total: finalTotal.toString(),
-      deliveryAddress: body.deliveryAddress,
-      status: "pending_payment",
-    }).returning()
+        const now = new Date()
+        const [created] = await tx.insert(orders).values({
+          buyerId: userId,
+          shopId: body.shopId,
+          total: (total - discount).toString(),
+          deliveryAddress: body.deliveryAddress,
+          status: "pending_payment",
+          paymentExpiresAt: newPaymentDeadline(now),
+          stockReservedAt: now,
+        }).returning()
 
-    if (appliedCoupon) {
-      await db.insert(couponRedemptions).values({
-        couponId: appliedCoupon.id,
-        orderId: order.id,
-        userId,
-        discountAmount: discount.toString(),
+        if (appliedCoupon) {
+          await tx.insert(couponRedemptions).values({
+            couponId: appliedCoupon.id,
+            orderId: created.id,
+            userId,
+            discountAmount: discount.toString(),
+          })
+        }
+
+        await tx.insert(orderItems).values(
+          lineItems.map(({ product, quantity, price }) => ({
+            orderId: created.id,
+            productId: product.id,
+            productName: product.name,
+            qty: quantity,
+            priceSnapshot: price.toString(),
+          }))
+        )
+        return created
       })
-      await db.update(coupons)
-        .set({ usedCount: sql`${coupons.usedCount} + 1` })
-        .where(eq(coupons.id, appliedCoupon.id))
+    } catch (e) {
+      if (e instanceof OrderError) return reply.code(e.code).send({ success: false, error: e.message })
+      throw e
     }
-
-    // Reserve stock immediately when order is placed (prevents overselling)
-    for (const { product, quantity } of lineItems) {
-      await db.update(products)
-        .set({ stock: sql`GREATEST(0, ${products.stock} - ${quantity})` })
-        .where(eq(products.id, product.id))
-    }
-
-    // Insert order items
-    await db.insert(orderItems).values(
-      lineItems.map(({ product, quantity, price }) => ({
-        orderId: order.id,
-        productId: product.id,
-        productName: product.name,
-        qty: quantity,
-        priceSnapshot: price.toString(),
-      }))
-    )
 
     // Notify seller about new order (fire-and-forget)
     try {
@@ -331,6 +357,26 @@ export async function orderRoutes(app: FastifyInstance) {
     return { success: true, data: rows }
   })
 
+  // Cancel an unpaid order (buyer). Paid orders go through the seller / refund flow instead.
+  app.post("/:id/cancel", { preHandler: [requireAuth] }, async (request, reply) => {
+    const { userId } = request.user as { userId: string }
+    const { id } = request.params as { id: string }
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) {
+      return reply.code(404).send({ success: false, error: "ไม่พบออเดอร์" })
+    }
+    const order = await db.query.orders.findFirst({ where: eq(orders.id, id) })
+    if (!order || order.buyerId !== userId) return reply.code(404).send({ success: false, error: "ไม่พบออเดอร์" })
+
+    const result = await cancelOrder(id, "buyer_cancelled", {
+      actorId: userId,
+      onlyIf: (o) => o.status === "pending_payment",
+    })
+    if (!result.ok) {
+      return reply.code(409).send({ success: false, error: "ยกเลิกไม่ได้ — ออเดอร์นี้ชำระเงินแล้วหรือไม่อยู่ในสถานะรอชำระเงิน" })
+    }
+    return { success: true, data: result.order }
+  })
+
   // Update order status (seller)
   app.patch("/:id/status", { preHandler: [requireAuth] }, async (request, reply) => {
     const { userId } = request.user as { userId: string }
@@ -344,10 +390,21 @@ export async function orderRoutes(app: FastifyInstance) {
       (role === "seller" && SELLER_SETTABLE.includes(status)) ||
       (role === "buyer" && status === "delivered" && order.status === "shipped")
     if (!allowed) return reply.code(403).send({ success: false, error: "ไม่มีสิทธิ์เปลี่ยนสถานะออเดอร์นี้" })
-    const [updated] = await db.update(orders)
-      .set({ status: status as any, updatedAt: new Date() })
-      .where(eq(orders.id, id))
-      .returning()
+
+    // Cancelling must also give back stock / coupon, so it never goes through a plain UPDATE.
+    let updated: typeof orders.$inferSelect
+    if (status === "cancelled") {
+      const result = await cancelOrder(id, role === "admin" ? "admin_cancelled" : "seller_cancelled", { actorId: userId })
+      if (!result.ok) {
+        return reply.code(409).send({ success: false, error: "ออเดอร์นี้ยกเลิกไม่ได้แล้ว (จัดส่งหรือเสร็จสิ้นแล้ว)" })
+      }
+      updated = result.order
+    } else {
+      ;[updated] = await db.update(orders)
+        .set({ status: status as any, updatedAt: new Date() })
+        .where(eq(orders.id, id))
+        .returning()
+    }
 
     const label = STATUS_LABELS[status] || status
     await notifyOrderStatus({
