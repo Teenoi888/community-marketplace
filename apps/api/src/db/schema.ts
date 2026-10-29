@@ -1,5 +1,5 @@
-import { pgTable, text, uuid, integer, numeric, boolean, timestamp, jsonb, pgEnum, doublePrecision } from "drizzle-orm/pg-core"
-import { relations } from "drizzle-orm"
+import { pgTable, text, uuid, integer, numeric, boolean, timestamp, jsonb, pgEnum, doublePrecision, uniqueIndex, index } from "drizzle-orm/pg-core"
+import { relations, sql } from "drizzle-orm"
 
 // Enums
 export const userRoleEnum = pgEnum("user_role", ["user", "admin"])
@@ -140,7 +140,35 @@ export const payments = pgTable("payments", {
   slipUrl: text("slip_url"),
   verifiedAt: timestamp("verified_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-})
+  // gateway bookkeeping (migration 0016)
+  provider: text("provider"),                       // "xendit" | "omise" | ...
+  providerRef: text("provider_ref"),                // the gateway's id for this payment/charge/invoice
+  currency: text("currency").default("THB").notNull(),
+  paidAmount: numeric("paid_amount", { precision: 12, scale: 2 }), // amount the gateway says was paid
+  failedReason: text("failed_reason"),
+  rawPayload: jsonb("raw_payload"),
+}, (t) => ({
+  providerRefUnique: uniqueIndex("payments_provider_ref_unique").on(t.provider, t.providerRef),
+  oneVerifiedPerOrder: uniqueIndex("payments_one_verified_per_order").on(t.orderId).where(sql`status = 'verified'`),
+}))
+
+// Every authenticated gateway callback and what we did with it (settled / duplicate / rejected / ...).
+export const paymentEvents = pgTable("payment_events", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  provider: text("provider").notNull(),
+  eventId: text("event_id").notNull(),
+  eventType: text("event_type").notNull(),
+  orderId: uuid("order_id").references(() => orders.id, { onDelete: "set null" }),
+  paymentId: uuid("payment_id").references(() => payments.id, { onDelete: "set null" }),
+  payload: jsonb("payload").notNull(),
+  outcome: text("outcome"),
+  reason: text("reason"),
+  receivedAt: timestamp("received_at").defaultNow().notNull(),
+  processedAt: timestamp("processed_at"),
+}, (t) => ({
+  providerEventUnique: uniqueIndex("payment_events_provider_event_unique").on(t.provider, t.eventId),
+  orderIdx: index("payment_events_order_idx").on(t.orderId),
+}))
 
 export const withdrawalStatusEnum = pgEnum("withdrawal_status", ["pending", "approved", "rejected", "paid"])
 
@@ -353,8 +381,14 @@ export const orderItemsRelations = relations(orderItems, ({ one }) => ({
   product: one(products, { fields: [orderItems.productId], references: [products.id] }),
 }))
 
-export const paymentsRelations = relations(payments, ({ one }) => ({
+export const paymentsRelations = relations(payments, ({ one, many }) => ({
   order: one(orders, { fields: [payments.orderId], references: [orders.id] }),
+  events: many(paymentEvents),
+}))
+
+export const paymentEventsRelations = relations(paymentEvents, ({ one }) => ({
+  payment: one(payments, { fields: [paymentEvents.paymentId], references: [payments.id] }),
+  order: one(orders, { fields: [paymentEvents.orderId], references: [orders.id] }),
 }))
 
 export const conversationsRelations = relations(conversations, ({ one, many }) => ({
