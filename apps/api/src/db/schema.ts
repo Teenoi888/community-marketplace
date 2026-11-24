@@ -223,6 +223,25 @@ export const adminActivityLogs = pgTable("admin_activity_logs", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 })
 
+export const systemSettings = pgTable("system_settings", {
+  key: text("key").primaryKey(),
+  value: jsonb("value").notNull(),
+  updatedBy: uuid("updated_by").references(() => users.id, { onDelete: "set null" }),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+})
+
+export const emailOutbox = pgTable("email_outbox", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  channel: text("channel").default("email").notNull(),
+  status: text("status").notNull(),
+  originalTo: text("original_to").notNull(),
+  deliveredTo: text("delivered_to"),
+  subject: text("subject").notNull(),
+  html: text("html"),
+  error: text("error"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+})
+
 export const stockLogs = pgTable("stock_logs", {
   id: uuid("id").primaryKey().defaultRandom(),
   productId: uuid("product_id").references(() => products.id, { onDelete: "cascade" }).notNull(),

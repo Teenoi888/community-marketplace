@@ -1,10 +1,8 @@
-import { Resend } from "resend"
 import { db } from "../db/index.js"
 import { notifications, users } from "../db/schema.js"
 import { eq } from "drizzle-orm"
 import { pushToUser } from "../routes/chat/index.js"
-
-const resend = new Resend(process.env.RESEND_API_KEY || "re_placeholder")
+import { sendEmail, sendLinePush } from "./mailer.js"
 
 interface NotifyOrderStatusInput {
   userId: string
@@ -102,10 +100,9 @@ export async function notifyOrderStatus({ userId, orderId, title, body }: Notify
   const user = await db.query.users.findFirst({ where: eq(users.id, userId) })
   if (!user) return saved
 
-  if (user.email && process.env.RESEND_API_KEY) {
+  if (user.email) {
     try {
-      await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL!,
+      await sendEmail({
         to: user.email,
         subject: `${title} - ตลาดชุมชน`,
         html: renderEmailHtml({ title, body, orderId }),
@@ -115,19 +112,9 @@ export async function notifyOrderStatus({ userId, orderId, title, body }: Notify
     }
   }
 
-  if (user.lineUid && process.env.LINE_CHANNEL_ACCESS_TOKEN) {
+  if (user.lineUid) {
     try {
-      await fetch("https://api.line.me/v2/bot/message/push", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`,
-        },
-        body: JSON.stringify({
-          to: user.lineUid,
-          messages: [renderLineFlexMessage({ title, body, orderId })],
-        }),
-      })
+      await sendLinePush(user.lineUid, renderLineFlexMessage({ title, body, orderId }))
     } catch (err) {
       console.error("Failed to send LINE push notification", err)
     }

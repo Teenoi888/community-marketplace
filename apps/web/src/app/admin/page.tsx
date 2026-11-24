@@ -1,7 +1,7 @@
 "use client"
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Users, Package, Store, ShoppingBag, ShieldCheck, ChevronRight, Tag, ScrollText } from "lucide-react"
+import { Users, Package, Store, ShoppingBag, ShieldCheck, ChevronRight, Tag, ScrollText, Mail } from "lucide-react"
 import Link from "next/link"
 import { MainNav } from "@/components/layout/MainNav"
 import { AdminLayout } from "@/components/admin/AdminLayout"
@@ -98,6 +98,7 @@ export default function AdminPage() {
     { href: "/admin/products", label: "สินค้าทุกร้าน", icon: Package, desc: "แก้ไขหรือลบสินค้าของร้านไหนก็ได้" },
     { href: "/admin/users", label: "จัดการผู้ใช้", icon: Users, desc: "ดูรายชื่อผู้ใช้ เปลี่ยน role admin" },
     { href: "/admin/activity-logs", label: "Log กิจกรรม", icon: ScrollText, desc: "ตรวจสอบว่า admin คนไหนทำอะไรไปบ้าง" },
+    { href: "/admin/notifications", label: "การส่งอีเมล/LINE", icon: Mail, desc: "เปิด/ปิด/เปลี่ยนปลายทางการส่งอีเมลและ LINE ดูอีเมลที่ระบบส่ง" },
   ]
 
   return (
