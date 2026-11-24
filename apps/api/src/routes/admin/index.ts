@@ -216,9 +216,13 @@ export async function adminRoutes(app: FastifyInstance) {
       return { success: true, data: { ...(await getNotificationSettings()), environment: appEnv() } }
     })
 
-    protectedRoutes.put("/settings/notifications", async (request) => {
+    protectedRoutes.put("/settings/notifications", async (request, reply) => {
       const { userId } = request.user as { userId: string }
-      const body = notificationSettingsSchema.parse(request.body)
+      const parsed = notificationSettingsSchema.safeParse(request.body)
+      if (!parsed.success) {
+        return reply.code(400).send({ success: false, error: parsed.error.issues[0]?.message ?? "ข้อมูลไม่ถูกต้อง" })
+      }
+      const body = parsed.data
       await saveNotificationSettings(body, userId)
       await logAdminActivity({ adminId: userId, action: "settings.notifications", targetType: "settings", targetId: "notifications", details: body })
       return { success: true, data: { ...body, environment: appEnv() } }
