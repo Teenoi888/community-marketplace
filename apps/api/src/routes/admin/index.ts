@@ -6,6 +6,8 @@ import { eq, asc, count, ilike } from "drizzle-orm"
 import bcrypt from "bcryptjs"
 import { requireAdmin, requireAuth } from "../../middleware/auth.js"
 import { logAdminActivity } from "../../lib/adminLog.js"
+import { appEnv, isProduction, getNotificationSettings, saveNotificationSettings, listOutbox } from "../../lib/mailer.js"
+import { seedUatData } from "../../lib/uatSeed.js"
 
 const categorySchema = z.object({
   slug:      z.string().min(2).regex(/^[a-z0-9_]+$/, "slug ใช้ได้เฉพาะ a-z 0-9 _"),
@@ -14,6 +16,12 @@ const categorySchema = z.object({
   sortOrder: z.number().int().default(0),
   isActive:  z.boolean().default(true),
 })
+
+const notificationSettingsSchema = z.object({
+  emailMode: z.enum(["live", "redirect", "capture"]),
+  redirectTo: z.string().email("อีเมลไม่ถูกต้อง").nullable().or(z.literal("")).transform(v => v || null),
+  lineEnabled: z.boolean(),
+}).refine(v => v.emailMode !== "redirect" || !!v.redirectTo, { message: "โหมดส่งไปอีเมลทดสอบ ต้องกรอกอีเมลปลายทาง", path: ["redirectTo"] })
 
 const adminProductUpdateSchema = z.object({
   name: z.string().min(1).optional(),
@@ -38,6 +46,25 @@ export async function adminRoutes(app: FastifyInstance) {
     const { userId } = request.user as { userId: string }
     await db.update(users).set({ role: "admin" }).where(eq(users.id, userId))
     return { success: true, message: "อัปเกรดเป็น Admin แล้ว" }
+  })
+
+  // ── Seed fake UAT users/shops (test environments only, ADMIN_SECRET) ───────
+  // Call: POST /admin/seed-uat   body: { secret: "..." }
+  app.post("/seed-uat", async (request, reply) => {
+    if (isProduction()) {
+      return reply.code(403).send({ success: false, error: "ใช้ได้เฉพาะ environment ทดสอบ (ไม่ใช่ production)" })
+    }
+    const { secret } = (request.body ?? {}) as { secret?: string }
+    const adminSecret = process.env.ADMIN_SECRET
+    if (!adminSecret || secret !== adminSecret) {
+      return reply.code(403).send({ success: false, error: "Secret ไม่ถูกต้อง" })
+    }
+    const password = process.env.UAT_SEED_PASSWORD
+    if (!password || password.length < 8) {
+      return reply.code(400).send({ success: false, error: "ตั้งค่า UAT_SEED_PASSWORD (อย่างน้อย 8 ตัว) ก่อน" })
+    }
+    const result = await seedUatData(password)
+    return { success: true, environment: appEnv(), ...result }
   })
 
   // ── All routes below require Admin ─────────────────────────────────────────
@@ -182,6 +209,25 @@ export async function adminRoutes(app: FastifyInstance) {
         success: true,
         data: rows.map(r => ({ ...r, admin: r.admin ? { id: r.admin.id, name: r.admin.name } : null })),
       }
+    })
+
+    // ── Notification delivery settings (email / LINE) ──────────────────────
+    protectedRoutes.get("/settings/notifications", async () => {
+      return { success: true, data: { ...(await getNotificationSettings()), environment: appEnv() } }
+    })
+
+    protectedRoutes.put("/settings/notifications", async (request) => {
+      const { userId } = request.user as { userId: string }
+      const body = notificationSettingsSchema.parse(request.body)
+      await saveNotificationSettings(body, userId)
+      await logAdminActivity({ adminId: userId, action: "settings.notifications", targetType: "settings", targetId: "notifications", details: body })
+      return { success: true, data: { ...body, environment: appEnv() } }
+    })
+
+    protectedRoutes.get("/email-outbox", async (request) => {
+      const { limit = "50" } = request.query as Record<string, string>
+      const rows = await listOutbox(Math.min(Math.max(Number(limit) || 50, 1), 200))
+      return { success: true, data: rows }
     })
   })
 }

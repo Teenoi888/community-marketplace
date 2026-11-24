@@ -23,6 +23,7 @@ const ACTION_LABELS: Record<string, string> = {
   "product.delete": "ลบสินค้า",
   "user.role_change": "เปลี่ยนสิทธิ์ผู้ใช้",
   "user.reset_password": "รีเซ็ตรหัสผ่านผู้ใช้",
+  "settings.notifications": "เปลี่ยนการตั้งค่าส่งอีเมล/LINE",
 }
 
 const TARGET_ICON: Record<string, any> = {

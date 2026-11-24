@@ -1,7 +1,7 @@
 "use client"
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { LayoutDashboard, Tag, Users, ShieldCheck, ExternalLink, LogOut, ScrollText, Package } from "lucide-react"
+import { LayoutDashboard, Tag, Users, ShieldCheck, ExternalLink, LogOut, ScrollText, Package, Mail } from "lucide-react"
 import { useAuthStore } from "@/lib/store/auth"
 import { api } from "@/lib/api"
 
@@ -11,6 +11,7 @@ const NAV_ITEMS = [
   { href: "/admin/products", label: "สินค้าทุกร้าน", icon: Package },
   { href: "/admin/users", label: "ผู้ใช้", icon: Users },
   { href: "/admin/activity-logs", label: "Log กิจกรรม", icon: ScrollText },
+  { href: "/admin/notifications", label: "การส่งอีเมล/LINE", icon: Mail },
 ]
 
 export function AdminLayout({ title, children }: { title: string; children: React.ReactNode }) {

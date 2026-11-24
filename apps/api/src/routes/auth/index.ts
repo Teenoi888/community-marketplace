@@ -1,12 +1,10 @@
 import type { FastifyInstance } from "fastify"
 import bcrypt from "bcryptjs"
 import { z } from "zod"
-import { Resend } from "resend"
 import { db } from "../../db/index.js"
 import { users, shops, otpCodes, passwordResets } from "../../db/schema.js"
 import { eq, and, isNull, desc, gt } from "drizzle-orm"
-
-const resend = new Resend(process.env.RESEND_API_KEY || "re_placeholder")
+import { sendEmail } from "../../lib/mailer.js"
 
 const registerSchema = z.object({
   name: z.string().min(2),
@@ -99,13 +97,11 @@ export async function authRoutes(app: FastifyInstance) {
     await db.insert(otpCodes).values({ email, code, expiresAt, purpose: "login" })
 
     try {
-      const { error } = await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL!,
+      await sendEmail({
         to: email,
         subject: "รหัสยืนยันตัวตน - ตลาดชุมชน",
         html: `<p>รหัส OTP ของคุณคือ <strong>${code}</strong><br/>หมดอายุใน 5 นาที</p>`,
       })
-      if (error) throw error
     } catch (err) {
       app.log.error(err, "Failed to send OTP email")
       return reply.code(502).send({ success: false, error: "ส่งอีเมลไม่สำเร็จ กรุณาลองใหม่" })
@@ -150,13 +146,11 @@ export async function authRoutes(app: FastifyInstance) {
     await db.insert(otpCodes).values({ email, code, expiresAt, purpose: "reset_password" })
 
     try {
-      const { error } = await resend.emails.send({
-        from: process.env.RESEND_FROM_EMAIL!,
+      await sendEmail({
         to: email,
         subject: "รีเซ็ตรหัสผ่าน - ตลาดชุมชน",
         html: `<p>รหัสสำหรับตั้งรหัสผ่านใหม่คือ <strong>${code}</strong><br/>หมดอายุใน 5 นาที</p>`,
       })
-      if (error) throw error
     } catch (err) {
       app.log.error(err, "Failed to send password reset email")
       return reply.code(502).send({ success: false, error: "ส่งอีเมลไม่สำเร็จ กรุณาลองใหม่" })
